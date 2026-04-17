@@ -1,0 +1,106 @@
+import { useEffect, useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Loader2, Search, Users } from "lucide-react";
+
+interface StudentRow {
+  id: string;
+  national_id: string;
+  full_name: string;
+  email: string | null;
+}
+
+const AdminStudents = () => {
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "student");
+      const ids = (roles ?? []).map((r: any) => r.user_id);
+      if (ids.length === 0) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, national_id, full_name, email")
+        .in("id", ids)
+        .order("full_name");
+      setStudents((data as any) ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = students.filter(
+    (s) =>
+      s.full_name.toLowerCase().includes(q.toLowerCase()) ||
+      s.national_id.includes(q)
+  );
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold">جميع الطلاب</h1>
+          <p className="text-muted-foreground">عرض الطلاب المسجلين في المنصة</p>
+        </div>
+
+        <div className="relative max-w-md">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="ابحث بالاسم أو الرقم القومي"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="pr-10"
+          />
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <Users className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">لا يوجد طلاب</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                أضف الطلاب من داخل تفاصيل أي مقرر
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {filtered.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between px-5 py-3">
+                    <div>
+                      <p className="font-semibold">{s.full_name}</p>
+                      <p className="text-xs font-mono text-muted-foreground" dir="ltr">
+                        {s.national_id}
+                      </p>
+                    </div>
+                    {s.email && (
+                      <p className="text-xs text-muted-foreground" dir="ltr">{s.email}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </AppLayout>
+  );
+};
+
+export default AdminStudents;
