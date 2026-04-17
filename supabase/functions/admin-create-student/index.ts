@@ -1,5 +1,6 @@
 // Admin-only: creates a student account given national_id and full_name.
-// Initial password = national_id. must_change_password=true.
+// Admin-only: creates a student account given national_id and full_name.
+// Initial password = national_id. must_change_password=true; app forces password change before access.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const cors = {
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, student_id: studentId, created }), {
       headers: cors,
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { headers: cors, status: 500 });
+  } catch {
+    return new Response(JSON.stringify({ error: "حدث خطأ غير متوقع" }), { headers: cors, status: 500 });
   }
 });
