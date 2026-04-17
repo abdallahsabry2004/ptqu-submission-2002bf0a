@@ -1,16 +1,126 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { GraduationCap, ShieldCheck, Upload, FolderArchive, BookOpen, Users } from "lucide-react";
+import heroImg from "@/assets/hero-academic.jpg";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-hero text-primary-foreground shadow-soft">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="font-display text-lg font-bold leading-tight">منصة التسليم الأكاديمية</h1>
+              <p className="text-xs text-muted-foreground">للأبحاث والأسايمنتس الجامعية</p>
+            </div>
+          </div>
+          <Link to="/auth">
+            <Button variant="default">تسجيل الدخول</Button>
+          </Link>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="container py-12 md:py-20 lg:py-28">
+        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+          <div className="space-y-6 animate-fade-in">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
+              <ShieldCheck className="h-4 w-4" />
+              نظام آمن لتسليم الأبحاث
+            </div>
+            <h2 className="font-display text-4xl font-black leading-tight tracking-tight md:text-5xl lg:text-6xl">
+              سلّم أبحاثك بكل
+              <span className="block bg-gradient-to-l from-primary via-primary-glow to-accent bg-clip-text text-transparent">
+                سهولة وأمان
+              </span>
+            </h2>
+            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
+              منصة متكاملة تربط الطلاب بالمسؤولين الأكاديميين. أنشئ المقررات،
+              قسّم المجموعات، وأدر طلبات التسليم بكفاءة عالية.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/auth">
+                <Button size="lg" className="gap-2 shadow-elegant">
+                  <BookOpen className="h-5 w-5" />
+                  ابدأ الآن
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative animate-scale-in">
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/20 to-transparent blur-2xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-border/50 shadow-elegant">
+              <img src={heroImg} alt="منصة تسليم الأبحاث الأكاديمية" className="h-full w-full object-cover" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="container py-12 md:py-20">
+        <div className="mb-12 text-center">
+          <h3 className="font-display text-3xl font-bold md:text-4xl">إمكانيات المنصة</h3>
+          <p className="mt-3 text-muted-foreground">كل ما تحتاجه لإدارة التسليمات الأكاديمية في مكان واحد</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {[
+            {
+              icon: BookOpen,
+              title: "إدارة المقررات",
+              desc: "أنشئ المقررات وأضف الطلاب بالرقم القومي بسهولة",
+            },
+            {
+              icon: Users,
+              title: "تقسيم المجموعات",
+              desc: "نظّم الطلاب في مجموعات وكلّفهم بأبحاث مخصصة",
+            },
+            {
+              icon: Upload,
+              title: "رفع التسليمات",
+              desc: "الطالب يرفع بحثه بكل سهولة ويتلقى الرد فوراً",
+            },
+            {
+              icon: ShieldCheck,
+              title: "مراجعة آمنة",
+              desc: "اقبل أو ارفض التسليمات مع إبداء الملاحظات",
+            },
+            {
+              icon: FolderArchive,
+              title: "تحميل جماعي",
+              desc: "حمّل كل التسليمات دفعة واحدة في أرشيف منظّم",
+            },
+            {
+              icon: GraduationCap,
+              title: "سجل الطالب",
+              desc: "كل طالب يرى سجل تسليماته في كل مادة على حدة",
+            },
+          ].map((f, i) => (
+            <div
+              key={i}
+              className="group rounded-2xl border border-border bg-card p-6 shadow-soft transition-smooth hover:border-primary/30 hover:shadow-elegant"
+            >
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth group-hover:bg-primary group-hover:text-primary-foreground">
+                <f.icon className="h-6 w-6" />
+              </div>
+              <h4 className="mb-2 font-display text-lg font-bold">{f.title}</h4>
+              <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-border/50 py-8">
+        <div className="container text-center text-sm text-muted-foreground">
+          منصة تسليم الأبحاث الأكاديمية © {new Date().getFullYear()}
+        </div>
+      </footer>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
