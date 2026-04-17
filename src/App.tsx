@@ -3,8 +3,22 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import Settings from "./pages/Settings";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminCourses from "./pages/admin/AdminCourses";
+import AdminCourseDetail from "./pages/admin/AdminCourseDetail";
+import AdminStudents from "./pages/admin/AdminStudents";
+import AdminAssignments from "./pages/admin/AdminAssignments";
+import StudentDashboard from "./pages/student/StudentDashboard";
+import StudentCourses from "./pages/student/StudentCourses";
+import StudentCourseDetail from "./pages/student/StudentCourseDetail";
+import StudentAssignmentDetail from "./pages/student/StudentAssignmentDetail";
+import StudentSubmissions from "./pages/student/StudentSubmissions";
 
 const queryClient = new QueryClient();
 
@@ -12,13 +26,31 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
+      <Sonner position="top-center" dir="rtl" />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+
+            {/* Admin */}
+            <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/courses" element={<ProtectedRoute requiredRole="admin"><AdminCourses /></ProtectedRoute>} />
+            <Route path="/admin/courses/:id" element={<ProtectedRoute requiredRole="admin"><AdminCourseDetail /></ProtectedRoute>} />
+            <Route path="/admin/students" element={<ProtectedRoute requiredRole="admin"><AdminStudents /></ProtectedRoute>} />
+            <Route path="/admin/assignments" element={<ProtectedRoute requiredRole="admin"><AdminAssignments /></ProtectedRoute>} />
+
+            {/* Student */}
+            <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboard /></ProtectedRoute>} />
+            <Route path="/student/courses" element={<ProtectedRoute requiredRole="student"><StudentCourses /></ProtectedRoute>} />
+            <Route path="/student/courses/:id" element={<ProtectedRoute requiredRole="student"><StudentCourseDetail /></ProtectedRoute>} />
+            <Route path="/student/assignments/:id" element={<ProtectedRoute requiredRole="student"><StudentAssignmentDetail /></ProtectedRoute>} />
+            <Route path="/student/submissions" element={<ProtectedRoute requiredRole="student"><StudentSubmissions /></ProtectedRoute>} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
