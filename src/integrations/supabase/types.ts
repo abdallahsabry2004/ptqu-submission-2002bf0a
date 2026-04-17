@@ -312,6 +312,10 @@ export type Database = {
         Args: { _assignment_id: string; _user: string }
         Returns: boolean
       }
+      student_can_submit_assignment: {
+        Args: { _assignment_id: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "student"
