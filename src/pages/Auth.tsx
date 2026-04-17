@@ -6,12 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminSeed } from "@/hooks/useAdminSeed";
 import { toast } from "sonner";
 import { GraduationCap, Loader2, ArrowRight } from "lucide-react";
 
 const Auth = () => {
-  useAdminSeed();
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [nationalId, setNationalId] = useState("");
@@ -21,6 +19,11 @@ const Auth = () => {
   if (!authLoading && user && role) {
     return <Navigate to={role === "admin" ? "/admin" : "/student"} replace />;
   }
+
+  const signInUsingEmailCandidate = async (email: string, pw: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    return { data, error };
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,30 +36,29 @@ const Auth = () => {
       toast.error("أدخل كلمة المرور");
       return;
     }
+
     setSubmitting(true);
     try {
-      // Lookup the email associated with this national_id
-      const { data: lookup, error: lookErr } = await supabase.functions.invoke("lookup-by-national-id", {
-        body: { national_id: nid },
-      });
-      if (lookErr || !lookup?.email) {
-        toast.error("الرقم القومي غير مسجل");
-        setSubmitting(false);
+      const emailCandidates = [`${nid}@students.local`, `${nid}@admin.local`];
+      let signedIn = false;
+
+      for (const email of emailCandidates) {
+        const { error } = await signInUsingEmailCandidate(email, password);
+        if (!error) {
+          signedIn = true;
+          break;
+        }
+      }
+
+      if (!signedIn) {
+        toast.error("بيانات الدخول غير صحيحة");
         return;
       }
-      const { error } = await supabase.auth.signInWithPassword({
-        email: lookup.email,
-        password,
-      });
-      if (error) {
-        toast.error("كلمة المرور غير صحيحة");
-        setSubmitting(false);
-        return;
-      }
+
       toast.success("تم تسجيل الدخول");
-      // Auth state listener will trigger navigation via Navigate above
-    } catch (err: any) {
-      toast.error(err.message ?? "خطأ");
+      navigate("/", { replace: true });
+    } catch {
+      toast.error("حدث خطأ أثناء تسجيل الدخول");
     } finally {
       setSubmitting(false);
     }

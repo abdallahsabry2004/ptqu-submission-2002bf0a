@@ -17,6 +17,7 @@ const Settings = () => {
 
   const [email, setEmail] = useState(profile?.email ?? "");
   const [savingEmail, setSavingEmail] = useState(false);
+  const mustChangePassword = profile?.must_change_password;
 
   const changePassword = async () => {
     if (pw.length < 6) {
@@ -102,9 +103,16 @@ const Settings = () => {
             <CardTitle className="flex items-center gap-2">
               <KeyRound className="h-5 w-5 text-primary" /> تغيير كلمة المرور
             </CardTitle>
-            <CardDescription>اختر كلمة مرور قوية (6 أحرف على الأقل)</CardDescription>
+            <CardDescription>
+              {mustChangePassword ? "يجب تغيير كلمة المرور الحالية قبل متابعة استخدام المنصة" : "اختر كلمة مرور قوية (6 أحرف على الأقل)"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {mustChangePassword && (
+              <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+                كلمة المرور الحالية مؤقتة، ولن تتمكن من متابعة استخدام المنصة قبل تعيين كلمة مرور جديدة.
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="newpw">كلمة المرور الجديدة</Label>
