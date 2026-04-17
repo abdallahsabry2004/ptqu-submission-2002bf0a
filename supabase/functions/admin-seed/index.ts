@@ -1,29 +1,40 @@
 // Seeds the default admin user. Idempotent - safe to call multiple times.
-// Public endpoint - only creates the predefined admin if missing.
+// Reads ADMIN_NATIONAL_ID and ADMIN_SEED_PASSWORD from environment secrets.
+// The seeded admin is forced to change password on first login.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
-
-const ADMIN_NATIONAL_ID = "30409302705178";
-const ADMIN_DEFAULT_PASSWORD = "Admin";
-const ADMIN_FAKE_EMAIL = `${ADMIN_NATIONAL_ID}@admin.local`;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
-  }
-
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Content-Type": "application/json",
   };
 
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: cors });
+  }
+
   try {
+    const ADMIN_NATIONAL_ID = Deno.env.get("ADMIN_NATIONAL_ID");
+    const ADMIN_SEED_PASSWORD = Deno.env.get("ADMIN_SEED_PASSWORD");
+
+    if (!ADMIN_NATIONAL_ID || !ADMIN_SEED_PASSWORD) {
+      // Do not leak which secret is missing.
+      return new Response(
+        JSON.stringify({ ok: false, error: "Admin seed not configured" }),
+        { headers: cors, status: 500 }
+      );
+    }
+
+    if (!/^\d{5,20}$/.test(ADMIN_NATIONAL_ID)) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invalid admin national id" }),
+        { headers: cors, status: 500 }
+      );
+    }
+
+    const ADMIN_FAKE_EMAIL = `${ADMIN_NATIONAL_ID}@admin.local`;
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -43,7 +54,7 @@ Deno.serve(async (req) => {
     // Create the admin user via auth admin API
     const { data: created, error: createErr } = await supabase.auth.admin.createUser({
       email: ADMIN_FAKE_EMAIL,
-      password: ADMIN_DEFAULT_PASSWORD,
+      password: ADMIN_SEED_PASSWORD,
       email_confirm: true,
       user_metadata: { national_id: ADMIN_NATIONAL_ID, full_name: "المسؤول" },
     });
@@ -57,12 +68,12 @@ Deno.serve(async (req) => {
 
     const userId = created.user.id;
 
-    // Insert profile
+    // Insert profile - force password change on first login
     const { error: profErr } = await supabase.from("profiles").insert({
       id: userId,
       national_id: ADMIN_NATIONAL_ID,
       full_name: "المسؤول",
-      must_change_password: false,
+      must_change_password: true,
     });
     if (profErr) {
       return new Response(JSON.stringify({ ok: false, error: profErr.message }), {

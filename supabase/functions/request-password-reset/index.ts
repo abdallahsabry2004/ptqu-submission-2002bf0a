@@ -7,6 +7,31 @@ const cors = {
   "Content-Type": "application/json",
 };
 
+// Allow-list for redirect_to: only the configured app URL (and its origin) is permitted.
+function buildAllowedOrigins(): string[] {
+  const origins = new Set<string>();
+  const appUrl = Deno.env.get("APP_URL");
+  if (appUrl) {
+    try { origins.add(new URL(appUrl).origin); } catch { /* ignore */ }
+  }
+  // Always allow the Supabase project URL origin as a safe fallback.
+  const supaUrl = Deno.env.get("SUPABASE_URL");
+  if (supaUrl) {
+    try { origins.add(new URL(supaUrl).origin); } catch { /* ignore */ }
+  }
+  return [...origins];
+}
+
+function safeRedirect(input: unknown): string | undefined {
+  if (typeof input !== "string" || input.length === 0 || input.length > 500) return undefined;
+  let url: URL;
+  try { url = new URL(input); } catch { return undefined; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+  const allowed = buildAllowedOrigins();
+  if (allowed.length > 0 && !allowed.includes(url.origin)) return undefined;
+  return url.toString();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -16,6 +41,8 @@ Deno.serve(async (req) => {
     if (!/^\d{5,20}$/.test(nid)) {
       return new Response(JSON.stringify({ error: "الرقم القومي غير صالح" }), { headers: cors, status: 400 });
     }
+
+    const validatedRedirect = safeRedirect(redirect_to);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -36,23 +63,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate a recovery link by directly calling the recoverEmail flow
-    const { error } = await supabase.auth.admin.generateLink({
+    // Generate a recovery link for the linked email
+    await supabase.auth.admin.generateLink({
       type: "recovery",
       email: `${nid}@students.local`,
-      options: { redirectTo: redirect_to ?? undefined },
+      options: { redirectTo: validatedRedirect },
     });
 
-    // We'd need to send the email via custom delivery. For now, just acknowledge.
     return new Response(
       JSON.stringify({
         ok: true,
         message: "إذا كان البريد مرتبط، تم إرسال رسالة استعادة.",
-        note: error?.message,
       }),
       { headers: cors }
     );
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { headers: cors, status: 500 });
+  } catch (_e) {
+    // Do not leak internal error details
+    return new Response(JSON.stringify({ error: "حدث خطأ غير متوقع" }), { headers: cors, status: 500 });
   }
 });
