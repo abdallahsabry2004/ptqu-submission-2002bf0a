@@ -3,7 +3,17 @@ import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Search, Users, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface StudentRow {
   id: string;
@@ -17,26 +27,33 @@ const AdminStudents = () => {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "student");
-      const ids = (roles ?? []).map((r: any) => r.user_id);
-      if (ids.length === 0) {
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, national_id, full_name, email")
-        .in("id", ids)
-        .order("full_name");
-      setStudents((data as any) ?? []);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "student");
+    const ids = (roles ?? []).map((r: any) => r.user_id);
+    if (ids.length === 0) {
+      setStudents([]);
       setLoading(false);
-    })();
+      return;
+    }
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, national_id, full_name, email")
+      .in("id", ids)
+      .order("full_name");
+    setStudents((data as any) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   const filtered = students.filter(
@@ -45,12 +62,49 @@ const AdminStudents = () => {
       s.national_id.includes(q)
   );
 
+  const startEdit = (s: StudentRow) => {
+    setEditId(s.id);
+    setEditName(s.full_name);
+  };
+
+  const saveEdit = async () => {
+    if (!editId) return;
+    if (editName.trim().length < 2) {
+      toast.error("الاسم غير صالح");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editName.trim() })
+      .eq("id", editId);
+    if (error) toast.error("تعذر تعديل الاسم");
+    else {
+      toast.success("تم الحفظ");
+      setEditId(null);
+      load();
+    }
+    setSaving(false);
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("حذف الطالب نهائيًا من المنصة؟ سيتم حذف كل تسليماته.")) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: id },
+    });
+    if (error || data?.error) toast.error(data?.error ?? error?.message ?? "خطأ");
+    else {
+      toast.success("تم الحذف");
+      load();
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">جميع الطلاب</h1>
-          <p className="text-muted-foreground">عرض الطلاب المسجلين في المنصة</p>
+          <p className="text-muted-foreground">عرض وتعديل وحذف الطلاب المسجلين</p>
         </div>
 
         <div className="relative max-w-md">
@@ -82,22 +136,56 @@ const AdminStudents = () => {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {filtered.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between px-5 py-3">
-                    <div>
-                      <p className="font-semibold">{s.full_name}</p>
+                  <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{s.full_name}</p>
                       <p className="text-xs font-mono text-muted-foreground" dir="ltr">
                         {s.national_id}
                       </p>
                     </div>
-                    {s.email && (
-                      <p className="text-xs text-muted-foreground" dir="ltr">{s.email}</p>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEdit(s)}
+                        aria-label="تعديل"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => remove(s.id)}
+                        aria-label="حذف"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             </CardContent>
           </Card>
         )}
+
+        <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>تعديل اسم الطالب</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button onClick={saveEdit} disabled={saving} className="gap-2">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

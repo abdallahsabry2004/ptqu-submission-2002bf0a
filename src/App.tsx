@@ -14,6 +14,10 @@ import AdminCourses from "./pages/admin/AdminCourses";
 import AdminCourseDetail from "./pages/admin/AdminCourseDetail";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminAssignments from "./pages/admin/AdminAssignments";
+import AdminSupervisors from "./pages/admin/AdminSupervisors";
+import SupervisorDashboard from "./pages/supervisor/SupervisorDashboard";
+import SupervisorCourses from "./pages/supervisor/SupervisorCourses";
+import SupervisorAssignments from "./pages/supervisor/SupervisorAssignments";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentCourses from "./pages/student/StudentCourses";
 import StudentCourseDetail from "./pages/student/StudentCourseDetail";
@@ -39,7 +43,13 @@ const App = () => (
             <Route path="/admin/courses" element={<ProtectedRoute requiredRole="admin"><AdminCourses /></ProtectedRoute>} />
             <Route path="/admin/courses/:id" element={<ProtectedRoute requiredRole="admin"><AdminCourseDetail /></ProtectedRoute>} />
             <Route path="/admin/students" element={<ProtectedRoute requiredRole="admin"><AdminStudents /></ProtectedRoute>} />
+            <Route path="/admin/supervisors" element={<ProtectedRoute requiredRole="admin"><AdminSupervisors /></ProtectedRoute>} />
             <Route path="/admin/assignments" element={<ProtectedRoute requiredRole="admin"><AdminAssignments /></ProtectedRoute>} />
+
+            {/* Supervisor */}
+            <Route path="/supervisor" element={<ProtectedRoute requiredRole="supervisor"><SupervisorDashboard /></ProtectedRoute>} />
+            <Route path="/supervisor/courses" element={<ProtectedRoute requiredRole="supervisor"><SupervisorCourses /></ProtectedRoute>} />
+            <Route path="/supervisor/assignments" element={<ProtectedRoute requiredRole="supervisor"><SupervisorAssignments /></ProtectedRoute>} />
 
             {/* Student */}
             <Route path="/student" element={<ProtectedRoute requiredRole="student"><StudentDashboard /></ProtectedRoute>} />
