@@ -6,9 +6,11 @@ import { Loader2 } from "lucide-react";
 export function ProtectedRoute({
   children,
   requiredRole,
+  allowRoles,
 }: {
   children: ReactNode;
   requiredRole?: AppRole;
+  allowRoles?: AppRole[];
 }) {
   const { user, role, loading, profile } = useAuth();
   const location = useLocation();
@@ -27,8 +29,10 @@ export function ProtectedRoute({
     return <Navigate to="/settings" replace state={{ forcedPasswordChange: true }} />;
   }
 
-  if (requiredRole && role !== requiredRole) {
-    return <Navigate to={role === "admin" ? "/admin" : "/student"} replace />;
+  const allowed = allowRoles ?? (requiredRole ? [requiredRole] : null);
+  if (allowed && (!role || !allowed.includes(role))) {
+    const dest = role === "admin" ? "/admin" : role === "supervisor" ? "/supervisor" : "/student";
+    return <Navigate to={dest} replace />;
   }
 
   return <>{children}</>;
