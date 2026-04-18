@@ -100,6 +100,42 @@ export type Database = {
           },
         ]
       }
+      course_supervisors: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          supervisor_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          supervisor_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          supervisor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_supervisors_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_supervisors_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           code: string | null
@@ -308,12 +344,21 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_supervisor: { Args: { _user_id: string }; Returns: boolean }
       student_can_see_assignment: {
         Args: { _assignment_id: string; _user: string }
         Returns: boolean
       }
       student_can_submit_assignment: {
         Args: { _assignment_id: string; _user: string }
+        Returns: boolean
+      }
+      supervises_assignment: {
+        Args: { _assignment_id: string; _user_id: string }
+        Returns: boolean
+      }
+      supervises_course: {
+        Args: { _course_id: string; _user_id: string }
         Returns: boolean
       }
     }
