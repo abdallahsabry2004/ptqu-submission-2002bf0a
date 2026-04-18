@@ -41,6 +41,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Single-student mode (legacy) OR bulk mode
+    if (Array.isArray(body.students)) {
+      return await handleBulk(supabase, body);
+    }
+
     const national_id = String(body.national_id ?? "").trim();
     const full_name = String(body.full_name ?? "").trim();
     const course_id = body.course_id ? String(body.course_id) : null;
@@ -65,36 +71,11 @@ Deno.serve(async (req) => {
     if (existing) {
       studentId = existing.id;
     } else {
-      const fakeEmail = `${national_id}@students.local`;
-      const { data: createdUser, error: cErr } = await supabase.auth.admin.createUser({
-        email: fakeEmail,
-        password: national_id,
-        email_confirm: true,
-        user_metadata: { national_id, full_name },
-      });
-      if (cErr || !createdUser.user) {
-        return new Response(JSON.stringify({ error: cErr?.message ?? "إنشاء فشل" }), {
-          headers: cors,
-          status: 500,
-        });
+      const result = await createStudentAccount(supabase, national_id, full_name);
+      if ("error" in result) {
+        return new Response(JSON.stringify({ error: result.error }), { headers: cors, status: 500 });
       }
-      studentId = createdUser.user.id;
-      const { error: pErr } = await supabase.from("profiles").insert({
-        id: studentId,
-        national_id,
-        full_name,
-        must_change_password: true,
-      });
-      if (pErr) {
-        return new Response(JSON.stringify({ error: pErr.message }), { headers: cors, status: 500 });
-      }
-      const { error: rErr } = await supabase.from("user_roles").insert({
-        user_id: studentId,
-        role: "student",
-      });
-      if (rErr) {
-        return new Response(JSON.stringify({ error: rErr.message }), { headers: cors, status: 500 });
-      }
+      studentId = result.id;
       created = true;
     }
 
@@ -113,3 +94,84 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "حدث خطأ غير متوقع" }), { headers: cors, status: 500 });
   }
 });
+
+async function createStudentAccount(supabase: any, national_id: string, full_name: string) {
+  const fakeEmail = `${national_id}@students.local`;
+  const { data: createdUser, error: cErr } = await supabase.auth.admin.createUser({
+    email: fakeEmail,
+    password: national_id,
+    email_confirm: true,
+    user_metadata: { national_id, full_name },
+  });
+  if (cErr || !createdUser.user) {
+    return { error: "تعذر إنشاء حساب الطالب" };
+  }
+  const studentId = createdUser.user.id;
+  const { error: pErr } = await supabase.from("profiles").insert({
+    id: studentId,
+    national_id,
+    full_name,
+    must_change_password: true,
+  });
+  if (pErr) return { error: "تعذر حفظ بيانات الطالب" };
+  const { error: rErr } = await supabase.from("user_roles").insert({
+    user_id: studentId,
+    role: "student",
+  });
+  if (rErr) return { error: "تعذر تعيين صلاحية الطالب" };
+  return { id: studentId };
+}
+
+async function handleBulk(supabase: any, body: any) {
+  const course_id = body.course_id ? String(body.course_id) : null;
+  const students = body.students as Array<{ national_id: string; full_name: string }>;
+
+  const results = {
+    created: 0,
+    enrolled: 0,
+    skipped: [] as Array<{ row: number; national_id: string; full_name: string; reason: string }>,
+  };
+
+  for (let i = 0; i < students.length; i++) {
+    const row = students[i];
+    const nid = String(row.national_id ?? "").trim();
+    const name = String(row.full_name ?? "").trim();
+
+    if (!/^\d{5,20}$/.test(nid)) {
+      results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: "رقم قومي غير صالح" });
+      continue;
+    }
+    if (name.length < 2 || name.length > 120) {
+      results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: "اسم غير صالح" });
+      continue;
+    }
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("national_id", nid)
+      .maybeSingle();
+
+    let studentId: string;
+    if (existing) {
+      studentId = existing.id;
+    } else {
+      const created = await createStudentAccount(supabase, nid, name);
+      if ("error" in created) {
+        results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: created.error });
+        continue;
+      }
+      studentId = created.id;
+      results.created++;
+    }
+
+    if (course_id) {
+      const { error: eErr } = await supabase
+        .from("course_students")
+        .insert({ course_id, student_id: studentId });
+      if (!eErr) results.enrolled++;
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true, ...results }), { headers: cors });
+}
