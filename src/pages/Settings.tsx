@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 import { KeyRound, Mail, Loader2, IdCard } from "lucide-react";
 
@@ -116,11 +117,11 @@ const Settings = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="newpw">كلمة المرور الجديدة</Label>
-                <Input id="newpw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
+                <PasswordInput id="newpw" value={pw} onChange={(e) => setPw(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newpw2">تأكيد كلمة المرور</Label>
-                <Input id="newpw2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+                <PasswordInput id="newpw2" value={pw2} onChange={(e) => setPw2(e.target.value)} />
               </div>
             </div>
             <Button onClick={changePassword} disabled={savingPw} className="gap-2">

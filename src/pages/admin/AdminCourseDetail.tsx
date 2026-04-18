@@ -50,7 +50,7 @@ const AdminCourseDetail = () => {
       supabase.from("courses").select("name").eq("id", courseId).single(),
       supabase
         .from("course_students")
-        .select("student_id, profiles!course_students_student_id_fkey(id, national_id, full_name)")
+        .select("student_id")
         .eq("course_id", courseId),
       supabase
         .from("groups")
@@ -59,7 +59,19 @@ const AdminCourseDetail = () => {
         .order("created_at"),
     ]);
     setCourseName((c as any)?.name ?? "");
-    setStudents(((cs as any) ?? []).map((r: any) => r.profiles).filter(Boolean));
+
+    const studentIds = ((cs as any) ?? []).map((r: any) => r.student_id);
+    let studentRows: Student[] = [];
+    if (studentIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, national_id, full_name")
+        .in("id", studentIds)
+        .order("full_name");
+      studentRows = (profs as any) ?? [];
+    }
+    setStudents(studentRows);
+
     setGroups(
       ((gs as any) ?? []).map((g: any) => ({
         id: g.id,

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -17,13 +18,9 @@ const Auth = () => {
   const [submitting, setSubmitting] = useState(false);
 
   if (!authLoading && user && role) {
-    return <Navigate to={role === "admin" ? "/admin" : "/student"} replace />;
+    const dest = role === "admin" ? "/admin" : role === "supervisor" ? "/supervisor" : "/student";
+    return <Navigate to={dest} replace />;
   }
-
-  const signInUsingEmailCandidate = async (email: string, pw: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pw });
-    return { data, error };
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,11 +36,15 @@ const Auth = () => {
 
     setSubmitting(true);
     try {
-      const emailCandidates = [`${nid}@students.local`, `${nid}@admin.local`];
+      const emailCandidates = [
+        `${nid}@students.local`,
+        `${nid}@supervisors.local`,
+        `${nid}@admin.local`,
+      ];
       let signedIn = false;
 
       for (const email of emailCandidates) {
-        const { error } = await signInUsingEmailCandidate(email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (!error) {
           signedIn = true;
           break;
@@ -83,7 +84,7 @@ const Auth = () => {
                 id="nid"
                 inputMode="numeric"
                 dir="ltr"
-                placeholder="مثال: 30409302705178"
+                placeholder="مثال: 30409302705170"
                 value={nationalId}
                 onChange={(e) => setNationalId(e.target.value)}
                 autoComplete="username"
@@ -92,9 +93,8 @@ const Auth = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="pw">كلمة المرور</Label>
-              <Input
+              <PasswordInput
                 id="pw"
-                type="password"
                 placeholder="أدخل كلمة المرور"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

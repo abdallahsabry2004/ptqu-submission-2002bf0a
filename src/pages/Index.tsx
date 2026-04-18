@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, ShieldCheck, Upload, FolderArchive, BookOpen, Users } from "lucide-react";
-import heroImg from "@/assets/hero-academic.jpg";
+import { AppFooter } from "@/components/AppFooter";
+import heroImg from "@/assets/hero-physiotherapy.jpg";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container flex h-16 items-center justify-between">
@@ -15,7 +16,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="font-display text-lg font-bold leading-tight">منصة التسليم الأكاديمية</h1>
-              <p className="text-xs text-muted-foreground">للأبحاث والأسايمنتس الجامعية</p>
+              <p className="text-xs text-muted-foreground">كلية العلاج الطبيعي جامعة قنا</p>
             </div>
           </div>
           <Link to="/auth">
@@ -39,8 +40,8 @@ const Index = () => {
               </span>
             </h2>
             <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
-              منصة متكاملة تربط الطلاب بالمسؤولين الأكاديميين. أنشئ المقررات،
-              قسّم المجموعات، وأدر طلبات التسليم بكفاءة عالية.
+              منصة متكاملة خاصة بطلاب وأساتذة <span className="font-semibold text-foreground">كلية العلاج الطبيعي بجامعة قنا</span>،
+              لإدارة مقررات الكلية وتسليم الأبحاث والأسايمنتس ومتابعة المراجعة بكل سهولة وأمان.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/auth">
@@ -55,7 +56,13 @@ const Index = () => {
           <div className="relative animate-scale-in">
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/20 to-transparent blur-2xl" />
             <div className="relative overflow-hidden rounded-3xl border border-border/50 shadow-elegant">
-              <img src={heroImg} alt="منصة تسليم الأبحاث الأكاديمية" className="h-full w-full object-cover" />
+              <img
+                src={heroImg}
+                alt="كلية العلاج الطبيعي جامعة قنا"
+                width={1280}
+                height={960}
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
         </div>
@@ -65,40 +72,16 @@ const Index = () => {
       <section className="container py-12 md:py-20">
         <div className="mb-12 text-center">
           <h3 className="font-display text-3xl font-bold md:text-4xl">إمكانيات المنصة</h3>
-          <p className="mt-3 text-muted-foreground">كل ما تحتاجه لإدارة التسليمات الأكاديمية في مكان واحد</p>
+          <p className="mt-3 text-muted-foreground">كل ما يحتاجه طلاب وأساتذة كلية العلاج الطبيعي في مكان واحد</p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            {
-              icon: BookOpen,
-              title: "إدارة المقررات",
-              desc: "أنشئ المقررات وأضف الطلاب بالرقم القومي بسهولة",
-            },
-            {
-              icon: Users,
-              title: "تقسيم المجموعات",
-              desc: "نظّم الطلاب في مجموعات وكلّفهم بأبحاث مخصصة",
-            },
-            {
-              icon: Upload,
-              title: "رفع التسليمات",
-              desc: "الطالب يرفع بحثه بكل سهولة ويتلقى الرد فوراً",
-            },
-            {
-              icon: ShieldCheck,
-              title: "مراجعة آمنة",
-              desc: "اقبل أو ارفض التسليمات مع إبداء الملاحظات",
-            },
-            {
-              icon: FolderArchive,
-              title: "تحميل جماعي",
-              desc: "حمّل كل التسليمات دفعة واحدة في أرشيف منظّم",
-            },
-            {
-              icon: GraduationCap,
-              title: "سجل الطالب",
-              desc: "كل طالب يرى سجل تسليماته في كل مادة على حدة",
-            },
+            { icon: BookOpen, title: "إدارة المقررات", desc: "أنشئ المقررات وأضف الطلاب بالرقم القومي بسهولة" },
+            { icon: Users, title: "تقسيم المجموعات", desc: "نظّم الطلاب في مجموعات وكلّفهم بأبحاث مخصصة" },
+            { icon: Upload, title: "رفع التسليمات", desc: "الطالب يرفع بحثه بكل سهولة ويتلقى الرد فوراً" },
+            { icon: ShieldCheck, title: "مراجعة آمنة", desc: "اقبل أو ارفض التسليمات مع إبداء الملاحظات" },
+            { icon: FolderArchive, title: "تحميل جماعي", desc: "حمّل كل التسليمات دفعة واحدة في أرشيف منظّم" },
+            { icon: GraduationCap, title: "سجل الطالب", desc: "كل طالب يرى سجل تسليماته في كل مادة على حدة" },
           ].map((f, i) => (
             <div
               key={i}
@@ -114,11 +97,7 @@ const Index = () => {
         </div>
       </section>
 
-      <footer className="border-t border-border/50 py-8">
-        <div className="container text-center text-sm text-muted-foreground">
-          منصة تسليم الأبحاث الأكاديمية © {new Date().getFullYear()}
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 };
