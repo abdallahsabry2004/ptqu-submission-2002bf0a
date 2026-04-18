@@ -509,6 +509,24 @@ const AdminCourseDetail = () => {
             </TabsContent>
           </Tabs>
         )}
+
+        <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>تعديل اسم الطالب</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button onClick={saveEditStudent} disabled={savingEdit} className="gap-2">
+                {savingEdit && <Loader2 className="h-4 w-4 animate-spin" />}
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
