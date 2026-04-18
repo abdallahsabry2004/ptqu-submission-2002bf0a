@@ -122,6 +122,76 @@ const AdminCourseDetail = () => {
     setAdding(false);
   };
 
+  const bulkAdd = async () => {
+    const lines = bulkText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      toast.error("ألصق بيانات الطلاب أولًا");
+      return;
+    }
+    const parsed: Array<{ national_id: string; full_name: string }> = [];
+    for (const line of lines) {
+      // Split by tab, comma, or multiple spaces
+      const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+      // Detect which part is the national ID (numeric, 5+ digits)
+      const idIndex = parts.findIndex((p) => /^\d{5,20}$/.test(p));
+      if (idIndex === -1) continue;
+      const national_id = parts[idIndex];
+      const full_name = parts.filter((_, i) => i !== idIndex).join(" ").trim();
+      if (full_name.length < 2) continue;
+      parsed.push({ national_id, full_name });
+    }
+    if (parsed.length === 0) {
+      toast.error("لم يتم العثور على بيانات صالحة (تحتاج لاسم ورقم قومي في كل سطر)");
+      return;
+    }
+    setBulking(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-student", {
+      body: { students: parsed, course_id: courseId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error ?? error?.message ?? "خطأ");
+    } else {
+      const skipped = (data.skipped ?? []).length;
+      toast.success(
+        `تمت إضافة ${data.enrolled ?? 0} طالب للمقرر${
+          skipped > 0 ? ` (تم تخطي ${skipped})` : ""
+        }`
+      );
+      setBulkText("");
+      setBulkOpen(false);
+      load();
+    }
+    setBulking(false);
+  };
+
+  const startEditStudent = (s: Student) => {
+    setEditId(s.id);
+    setEditName(s.full_name);
+  };
+
+  const saveEditStudent = async () => {
+    if (!editId) return;
+    if (editName.trim().length < 2) {
+      toast.error("الاسم غير صالح");
+      return;
+    }
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editName.trim() })
+      .eq("id", editId);
+    if (error) toast.error("تعذر الحفظ");
+    else {
+      toast.success("تم الحفظ");
+      setEditId(null);
+      load();
+    }
+    setSavingEdit(false);
+  };
   const removeStudent = async (sid: string) => {
     if (!confirm("إزالة الطالب من المقرر؟")) return;
     const { error } = await supabase
