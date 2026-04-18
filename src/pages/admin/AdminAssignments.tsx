@@ -80,7 +80,7 @@ const AdminAssignments = () => {
     ]);
 
     // Fetch student profiles separately and merge (avoids embed FK requirement)
-    const studentIds = Array.from(new Set(((subs as any) ?? []).map((s: any) => s.student_id)));
+    const studentIds = Array.from(new Set(((subs as any) ?? []).map((s: any) => s.student_id))) as string[];
     let profileMap = new Map<string, { full_name: string; national_id: string }>();
     if (studentIds.length > 0) {
       const { data: profs } = await supabase
