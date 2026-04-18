@@ -76,15 +76,29 @@ const AdminAssignments = () => {
       supabase.from("courses").select("id, name").order("name"),
       supabase.from("groups").select("id, name, course_id"),
       supabase.from("assignments").select("*").order("created_at", { ascending: false }),
-      supabase
-        .from("submissions")
-        .select("*, profiles!submissions_student_id_fkey(full_name, national_id)")
-        .order("submitted_at", { ascending: false }),
+      supabase.from("submissions").select("*").order("submitted_at", { ascending: false }),
     ]);
+
+    // Fetch student profiles separately and merge (avoids embed FK requirement)
+    const studentIds = Array.from(new Set(((subs as any) ?? []).map((s: any) => s.student_id)));
+    let profileMap = new Map<string, { full_name: string; national_id: string }>();
+    if (studentIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, national_id")
+        .in("id", studentIds);
+      profileMap = new Map((profs ?? []).map((p: any) => [p.id, { full_name: p.full_name, national_id: p.national_id }]));
+    }
+
     setCourses((cs as any) ?? []);
     setGroups((gs as any) ?? []);
     setAssignments((ass as any) ?? []);
-    setSubmissions((subs as any) ?? []);
+    setSubmissions(
+      ((subs as any) ?? []).map((s: any) => ({
+        ...s,
+        profiles: profileMap.get(s.student_id) ?? null,
+      }))
+    );
     setLoading(false);
   };
 
