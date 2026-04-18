@@ -5,12 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Plus, Loader2, Users, UserPlus, Trash2, FileText } from "lucide-react";
+import { ArrowRight, Plus, Loader2, Users, UserPlus, Trash2, FileText, Pencil, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 
 interface Student {
@@ -36,6 +37,16 @@ const AdminCourseDetail = () => {
   const [nid, setNid] = useState("");
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
+
+  // bulk paste form
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulking, setBulking] = useState(false);
+
+  // edit student name
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // add group form
   const [groupOpen, setGroupOpen] = useState(false);
@@ -111,6 +122,76 @@ const AdminCourseDetail = () => {
     setAdding(false);
   };
 
+  const bulkAdd = async () => {
+    const lines = bulkText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      toast.error("ألصق بيانات الطلاب أولًا");
+      return;
+    }
+    const parsed: Array<{ national_id: string; full_name: string }> = [];
+    for (const line of lines) {
+      // Split by tab, comma, or multiple spaces
+      const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+      // Detect which part is the national ID (numeric, 5+ digits)
+      const idIndex = parts.findIndex((p) => /^\d{5,20}$/.test(p));
+      if (idIndex === -1) continue;
+      const national_id = parts[idIndex];
+      const full_name = parts.filter((_, i) => i !== idIndex).join(" ").trim();
+      if (full_name.length < 2) continue;
+      parsed.push({ national_id, full_name });
+    }
+    if (parsed.length === 0) {
+      toast.error("لم يتم العثور على بيانات صالحة (تحتاج لاسم ورقم قومي في كل سطر)");
+      return;
+    }
+    setBulking(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-student", {
+      body: { students: parsed, course_id: courseId },
+    });
+    if (error || data?.error) {
+      toast.error(data?.error ?? error?.message ?? "خطأ");
+    } else {
+      const skipped = (data.skipped ?? []).length;
+      toast.success(
+        `تمت إضافة ${data.enrolled ?? 0} طالب للمقرر${
+          skipped > 0 ? ` (تم تخطي ${skipped})` : ""
+        }`
+      );
+      setBulkText("");
+      setBulkOpen(false);
+      load();
+    }
+    setBulking(false);
+  };
+
+  const startEditStudent = (s: Student) => {
+    setEditId(s.id);
+    setEditName(s.full_name);
+  };
+
+  const saveEditStudent = async () => {
+    if (!editId) return;
+    if (editName.trim().length < 2) {
+      toast.error("الاسم غير صالح");
+      return;
+    }
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editName.trim() })
+      .eq("id", editId);
+    if (error) toast.error("تعذر الحفظ");
+    else {
+      toast.success("تم الحفظ");
+      setEditId(null);
+      load();
+    }
+    setSavingEdit(false);
+  };
   const removeStudent = async (sid: string) => {
     if (!confirm("إزالة الطالب من المقرر؟")) return;
     const { error } = await supabase
@@ -210,7 +291,44 @@ const AdminCourseDetail = () => {
             </TabsList>
 
             <TabsContent value="students" className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <ClipboardPaste className="h-4 w-4" />
+                      إضافة دفعة من Excel
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>إضافة دفعة طلاب من Excel</DialogTitle>
+                      <CardDescription>
+                        انسخ عمودين من Excel (الاسم + الرقم القومي) والصقهم هنا — كل طالب في سطر منفصل.
+                      </CardDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                      <Label>بيانات الطلاب</Label>
+                      <textarea
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                        rows={10}
+                        dir="rtl"
+                        placeholder={"أحمد محمد\t30101012345678\nفاطمة علي\t30202023456789"}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        افصل بين الاسم والرقم القومي بـ Tab أو فاصلة. كلمة المرور المبدئية لكل طالب = رقمه القومي.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={bulkAdd} disabled={bulking} className="gap-2">
+                        {bulking && <Loader2 className="h-4 w-4 animate-spin" />}
+                        إضافة الكل
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -261,19 +379,30 @@ const AdminCourseDetail = () => {
                   <CardContent className="p-0">
                     <ul className="divide-y divide-border">
                       {students.map((s) => (
-                        <li key={s.id} className="flex items-center justify-between px-5 py-3">
-                          <div>
-                            <p className="font-semibold">{s.full_name}</p>
+                        <li key={s.id} className="flex items-center justify-between gap-2 px-5 py-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{s.full_name}</p>
                             <p className="text-xs font-mono text-muted-foreground" dir="ltr">{s.national_id}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeStudent(s.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => startEditStudent(s)}
+                              aria-label="تعديل الاسم"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => removeStudent(s.id)}
+                              aria-label="إزالة من المقرر"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -380,6 +509,24 @@ const AdminCourseDetail = () => {
             </TabsContent>
           </Tabs>
         )}
+
+        <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>تعديل اسم الطالب</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button onClick={saveEditStudent} disabled={savingEdit} className="gap-2">
+                {savingEdit && <Loader2 className="h-4 w-4 animate-spin" />}
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
