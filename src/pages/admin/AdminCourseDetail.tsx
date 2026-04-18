@@ -38,6 +38,16 @@ const AdminCourseDetail = () => {
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // bulk paste form
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulking, setBulking] = useState(false);
+
+  // edit student name
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // add group form
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
