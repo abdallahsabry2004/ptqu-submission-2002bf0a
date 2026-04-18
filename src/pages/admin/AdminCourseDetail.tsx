@@ -291,7 +291,44 @@ const AdminCourseDetail = () => {
             </TabsList>
 
             <TabsContent value="students" className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <ClipboardPaste className="h-4 w-4" />
+                      إضافة دفعة من Excel
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>إضافة دفعة طلاب من Excel</DialogTitle>
+                      <CardDescription>
+                        انسخ عمودين من Excel (الاسم + الرقم القومي) والصقهم هنا — كل طالب في سطر منفصل.
+                      </CardDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                      <Label>بيانات الطلاب</Label>
+                      <textarea
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                        rows={10}
+                        dir="rtl"
+                        placeholder={"أحمد محمد\t30101012345678\nفاطمة علي\t30202023456789"}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        افصل بين الاسم والرقم القومي بـ Tab أو فاصلة. كلمة المرور المبدئية لكل طالب = رقمه القومي.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={bulkAdd} disabled={bulking} className="gap-2">
+                        {bulking && <Loader2 className="h-4 w-4 animate-spin" />}
+                        إضافة الكل
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -342,19 +379,30 @@ const AdminCourseDetail = () => {
                   <CardContent className="p-0">
                     <ul className="divide-y divide-border">
                       {students.map((s) => (
-                        <li key={s.id} className="flex items-center justify-between px-5 py-3">
-                          <div>
-                            <p className="font-semibold">{s.full_name}</p>
+                        <li key={s.id} className="flex items-center justify-between gap-2 px-5 py-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{s.full_name}</p>
                             <p className="text-xs font-mono text-muted-foreground" dir="ltr">{s.national_id}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeStudent(s.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => startEditStudent(s)}
+                              aria-label="تعديل الاسم"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => removeStudent(s.id)}
+                              aria-label="إزالة من المقرر"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </li>
                       ))}
                     </ul>
