@@ -301,6 +301,49 @@ const AdminAssignments = () => {
                     </Select>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-border p-3 space-y-3 bg-muted/30">
+                  <p className="text-sm font-semibold">تقسيم المجموعات (اختياري)</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>طريقة التقسيم</Label>
+                      <Select value={groupingMode} onValueChange={(v: any) => setGroupingMode(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">بدون تقسيم</SelectItem>
+                          <SelectItem value="random">عشوائي</SelectItem>
+                          <SelectItem value="alphabetical">أبجدي</SelectItem>
+                          <SelectItem value="manual">يدوي بواسطة المسؤول</SelectItem>
+                          <SelectItem value="student_self">يختار الطلاب مجموعاتهم</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>تصفية حسب الجنس</Label>
+                      <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">الجميع (مختلط)</SelectItem>
+                          <SelectItem value="male">ذكور فقط</SelectItem>
+                          <SelectItem value="female">إناث فقط</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {groupingMode !== "none" && (
+                    <div className="space-y-2">
+                      <Label>عدد الأعضاء في كل مجموعة</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={maxGroupSize}
+                        onChange={(e) => setMaxGroupSize(e.target.value)}
+                        placeholder="مثال: 5"
+                      />
+                      <p className="text-xs text-muted-foreground">سيتم استخدام هذا العدد كحد أقصى لكل مجموعة. بعد إنشاء الطلب اضغط "إدارة المجموعات" لتنفيذ التقسيم.</p>
+                    </div>
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button onClick={create} disabled={creating} className="gap-2">
