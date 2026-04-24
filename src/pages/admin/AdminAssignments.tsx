@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive } from "lucide-react";
+import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
+import { Link } from "react-router-dom";
 
 interface Course { id: string; name: string }
 interface Group { id: string; name: string; course_id: string }
@@ -26,6 +27,9 @@ interface Assignment {
   group_id: string | null;
   late_policy: "block" | "allow_marked_late";
   created_at: string;
+  grouping_mode?: "none" | "random" | "alphabetical" | "manual" | "student_self";
+  gender_filter?: "male" | "female" | "any";
+  max_group_size?: number | null;
 }
 interface Submission {
   id: string;
