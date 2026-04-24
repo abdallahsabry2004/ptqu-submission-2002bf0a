@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive } from "lucide-react";
+import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive, Users2 } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
+import { Link } from "react-router-dom";
 
 interface Course { id: string; name: string }
 interface Group { id: string; name: string; course_id: string }
@@ -26,6 +27,9 @@ interface Assignment {
   group_id: string | null;
   late_policy: "block" | "allow_marked_late";
   created_at: string;
+  grouping_mode?: "none" | "random" | "alphabetical" | "manual" | "student_self";
+  gender_filter?: "male" | "female" | "any";
+  max_group_size?: number | null;
 }
 interface Submission {
   id: string;
@@ -69,6 +73,11 @@ const AdminAssignments = () => {
   const [due, setDue] = useState("");
   const [latePol, setLatePol] = useState<"block" | "allow_marked_late">("allow_marked_late");
   const [creating, setCreating] = useState(false);
+
+  // grouping options
+  const [groupingMode, setGroupingMode] = useState<"none" | "random" | "alphabetical" | "manual" | "student_self">("none");
+  const [genderFilter, setGenderFilter] = useState<"any" | "male" | "female">("any");
+  const [maxGroupSize, setMaxGroupSize] = useState<string>("");
 
   const load = async () => {
     setLoading(true);
@@ -122,6 +131,9 @@ const AdminAssignments = () => {
       scope,
       group_id: scope === "group" ? groupId : null,
       late_policy: latePol,
+      grouping_mode: groupingMode,
+      gender_filter: genderFilter,
+      max_group_size: maxGroupSize ? Math.max(1, parseInt(maxGroupSize, 10)) : null,
     });
     if (error) {
       toast.error(error.message);
@@ -132,6 +144,9 @@ const AdminAssignments = () => {
       setDesc("");
       setDue("");
       setGroupId("");
+      setGroupingMode("none");
+      setGenderFilter("any");
+      setMaxGroupSize("");
       load();
     }
     setCreating(false);
@@ -286,6 +301,49 @@ const AdminAssignments = () => {
                     </Select>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-border p-3 space-y-3 bg-muted/30">
+                  <p className="text-sm font-semibold">تقسيم المجموعات (اختياري)</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>طريقة التقسيم</Label>
+                      <Select value={groupingMode} onValueChange={(v: any) => setGroupingMode(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">بدون تقسيم</SelectItem>
+                          <SelectItem value="random">عشوائي</SelectItem>
+                          <SelectItem value="alphabetical">أبجدي</SelectItem>
+                          <SelectItem value="manual">يدوي بواسطة المسؤول</SelectItem>
+                          <SelectItem value="student_self">يختار الطلاب مجموعاتهم</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>تصفية حسب الجنس</Label>
+                      <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">الجميع (مختلط)</SelectItem>
+                          <SelectItem value="male">ذكور فقط</SelectItem>
+                          <SelectItem value="female">إناث فقط</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {groupingMode !== "none" && (
+                    <div className="space-y-2">
+                      <Label>عدد الأعضاء في كل مجموعة</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={maxGroupSize}
+                        onChange={(e) => setMaxGroupSize(e.target.value)}
+                        placeholder="مثال: 5"
+                      />
+                      <p className="text-xs text-muted-foreground">سيتم استخدام هذا العدد كحد أقصى لكل مجموعة. بعد إنشاء الطلب اضغط "إدارة المجموعات" لتنفيذ التقسيم.</p>
+                    </div>
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button onClick={create} disabled={creating} className="gap-2">
@@ -354,6 +412,14 @@ const AdminAssignments = () => {
                             <FolderArchive className="h-4 w-4" />
                             تحميل الكل
                           </Button>
+                        )}
+                        {a.grouping_mode && a.grouping_mode !== "none" && (
+                          <Link to={`/admin/assignments/${a.id}/groups`}>
+                            <Button variant="outline" size="sm" className="gap-1.5">
+                              <Users2 className="h-4 w-4" />
+                              المجموعات
+                            </Button>
+                          </Link>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => setExpandedId(isOpen ? null : a.id)}>
                           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

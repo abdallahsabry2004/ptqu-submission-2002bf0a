@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, Upload, Download, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, Upload, Download, Trash2, AlertCircle, CheckCircle2, Users2 } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels: Record<string, { label: string; variant: any; icon: any; color: string }> = {
@@ -170,6 +170,14 @@ const StudentAssignmentDetail = () => {
                 <span className="font-semibold">{new Date(assignment.due_date).toLocaleString("ar-EG")}</span>
                 {isOverdue && <Badge variant="destructive">انتهى الموعد</Badge>}
               </div>
+            )}
+            {assignment.grouping_mode && assignment.grouping_mode !== "none" && (
+              <Link to={`/student/assignments/${assignment.id}/groups`}>
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Users2 className="h-4 w-4" />
+                  عرض المجموعات والانضمام
+                </Button>
+              </Link>
             )}
           </CardContent>
         </Card>

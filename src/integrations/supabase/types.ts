@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignment_group_members: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          group_id: string
+          id: string
+          student_id: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          student_id: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_group_members_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_groups: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          max_size: number | null
+          name: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_size?: number | null
+          name: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_size?: number | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_groups_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           course_id: string
@@ -21,9 +95,13 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          gender_filter: Database["public"]["Enums"]["gender_filter"]
           group_id: string | null
+          grouping_mode: Database["public"]["Enums"]["grouping_mode"]
+          groups_locked: boolean
           id: string
           late_policy: Database["public"]["Enums"]["late_policy"]
+          max_group_size: number | null
           scope: Database["public"]["Enums"]["assignment_scope"]
           title: string
           updated_at: string
@@ -34,9 +112,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          gender_filter?: Database["public"]["Enums"]["gender_filter"]
           group_id?: string | null
+          grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
+          groups_locked?: boolean
           id?: string
           late_policy?: Database["public"]["Enums"]["late_policy"]
+          max_group_size?: number | null
           scope?: Database["public"]["Enums"]["assignment_scope"]
           title: string
           updated_at?: string
@@ -47,9 +129,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          gender_filter?: Database["public"]["Enums"]["gender_filter"]
           group_id?: string | null
+          grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
+          groups_locked?: boolean
           id?: string
           late_policy?: Database["public"]["Enums"]["late_policy"]
+          max_group_size?: number | null
           scope?: Database["public"]["Enums"]["assignment_scope"]
           title?: string
           updated_at?: string
@@ -165,6 +251,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      group_invitations: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          group_id: string
+          id: string
+          invitee_id: string
+          inviter_id: string
+          responded_at: string | null
+          status: Database["public"]["Enums"]["invitation_status"]
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          invitee_id: string
+          inviter_id: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invitation_status"]
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          invitee_id?: string
+          inviter_id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invitation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invitations_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       group_members: {
         Row: {
@@ -336,6 +470,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assignment_group_full: { Args: { _group_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -353,6 +488,10 @@ export type Database = {
         Args: { _assignment_id: string; _user: string }
         Returns: boolean
       }
+      student_in_assignment_group: {
+        Args: { _group_id: string; _user: string }
+        Returns: boolean
+      }
       supervises_assignment: {
         Args: { _assignment_id: string; _user_id: string }
         Returns: boolean
@@ -365,6 +504,14 @@ export type Database = {
     Enums: {
       app_role: "admin" | "student" | "supervisor"
       assignment_scope: "course" | "group"
+      gender_filter: "male" | "female" | "any"
+      grouping_mode:
+        | "none"
+        | "random"
+        | "alphabetical"
+        | "manual"
+        | "student_self"
+      invitation_status: "pending" | "accepted" | "rejected" | "cancelled"
       late_policy: "block" | "allow_marked_late"
       submission_status:
         | "pending"
@@ -500,6 +647,15 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "student", "supervisor"],
       assignment_scope: ["course", "group"],
+      gender_filter: ["male", "female", "any"],
+      grouping_mode: [
+        "none",
+        "random",
+        "alphabetical",
+        "manual",
+        "student_self",
+      ],
+      invitation_status: ["pending", "accepted", "rejected", "cancelled"],
       late_policy: ["block", "allow_marked_late"],
       submission_status: [
         "pending",
