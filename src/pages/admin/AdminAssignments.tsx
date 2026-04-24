@@ -413,6 +413,14 @@ const AdminAssignments = () => {
                             تحميل الكل
                           </Button>
                         )}
+                        {a.grouping_mode && a.grouping_mode !== "none" && (
+                          <Link to={`/admin/assignments/${a.id}/groups`}>
+                            <Button variant="outline" size="sm" className="gap-1.5">
+                              <Users2 className="h-4 w-4" />
+                              المجموعات
+                            </Button>
+                          </Link>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => setExpandedId(isOpen ? null : a.id)}>
                           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </Button>
