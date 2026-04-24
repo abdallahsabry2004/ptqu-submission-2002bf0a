@@ -74,6 +74,11 @@ const AdminAssignments = () => {
   const [latePol, setLatePol] = useState<"block" | "allow_marked_late">("allow_marked_late");
   const [creating, setCreating] = useState(false);
 
+  // grouping options
+  const [groupingMode, setGroupingMode] = useState<"none" | "random" | "alphabetical" | "manual" | "student_self">("none");
+  const [genderFilter, setGenderFilter] = useState<"any" | "male" | "female">("any");
+  const [maxGroupSize, setMaxGroupSize] = useState<string>("");
+
   const load = async () => {
     setLoading(true);
     const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }] = await Promise.all([
@@ -126,6 +131,9 @@ const AdminAssignments = () => {
       scope,
       group_id: scope === "group" ? groupId : null,
       late_policy: latePol,
+      grouping_mode: groupingMode,
+      gender_filter: genderFilter,
+      max_group_size: maxGroupSize ? Math.max(1, parseInt(maxGroupSize, 10)) : null,
     });
     if (error) {
       toast.error(error.message);
@@ -136,6 +144,9 @@ const AdminAssignments = () => {
       setDesc("");
       setDue("");
       setGroupId("");
+      setGroupingMode("none");
+      setGenderFilter("any");
+      setMaxGroupSize("");
       load();
     }
     setCreating(false);
