@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowRight, Loader2, Plus, Trash2, Shuffle, AlphaIcon as A, Lock, Unlock, Users2, RefreshCw } from "lucide-react";
+import { ArrowRight, Loader2, Plus, Trash2, Shuffle, Lock, Unlock, Users2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { genderFromNationalId, genderLabel, type Gender } from "@/lib/gender";
 
