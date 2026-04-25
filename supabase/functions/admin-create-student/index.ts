@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     } else {
       const result = await createStudentAccount(supabase, national_id, full_name);
       if ("error" in result) {
-        return new Response(JSON.stringify({ error: result.error }), { headers: cors, status: 500 });
+        return new Response(JSON.stringify({ error: result.error ?? "تعذر الإنشاء" }), { headers: cors, status: 500 });
       }
       studentId = result.id;
       created = true;
@@ -158,7 +158,7 @@ async function handleBulk(supabase: any, body: any) {
     } else {
       const created = await createStudentAccount(supabase, nid, name);
       if ("error" in created) {
-        results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: created.error });
+        results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: created.error ?? "تعذر الإنشاء" });
         continue;
       }
       studentId = created.id;
