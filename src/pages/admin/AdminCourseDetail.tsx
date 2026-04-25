@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,9 @@ interface Group {
 }
 
 const AdminCourseDetail = () => {
+  const { role } = useAuth();
+  const isSupervisor = role === "supervisor";
+  const baseRoute = isSupervisor ? "/supervisor" : "/admin";
   const { id: courseId } = useParams<{ id: string }>();
   const [courseName, setCourseName] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -258,7 +262,7 @@ const AdminCourseDetail = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Link to="/admin/courses">
+          <Link to={`${baseRoute}/courses`}>
             <Button variant="ghost" size="icon">
               <ArrowRight className="h-5 w-5" />
             </Button>
@@ -292,6 +296,7 @@ const AdminCourseDetail = () => {
 
             <TabsContent value="students" className="space-y-4">
               <div className="flex flex-wrap justify-end gap-2">
+                {!isSupervisor && (
                 <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
@@ -328,7 +333,9 @@ const AdminCourseDetail = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                )}
 
+                {!isSupervisor && (
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -366,6 +373,13 @@ const AdminCourseDetail = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                )}
+
+                {isSupervisor && (
+                  <p className="text-xs text-muted-foreground self-center">
+                    إنشاء حسابات الطلاب يتم بواسطة المسؤول العام فقط
+                  </p>
+                )}
               </div>
 
               {students.length === 0 ? (
@@ -385,14 +399,16 @@ const AdminCourseDetail = () => {
                             <p className="text-xs font-mono text-muted-foreground" dir="ltr">{s.national_id}</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => startEditStudent(s)}
-                              aria-label="تعديل الاسم"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                            {!isSupervisor && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => startEditStudent(s)}
+                                aria-label="تعديل الاسم"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -501,7 +517,7 @@ const AdminCourseDetail = () => {
               <Card>
                 <CardContent className="py-8 text-center space-y-3">
                   <p className="text-muted-foreground">لإدارة طلبات التسليم لهذا المقرر</p>
-                  <Link to={`/admin/assignments?course=${courseId}`}>
+                  <Link to={`${baseRoute}/assignments?course=${courseId}`}>
                     <Button>الذهاب لطلبات التسليم</Button>
                   </Link>
                 </CardContent>
