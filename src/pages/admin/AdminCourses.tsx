@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,9 @@ interface Course {
 }
 
 const AdminCourses = () => {
+  const { role, user } = useAuth();
+  const isSupervisor = role === "supervisor";
+  const baseRoute = isSupervisor ? "/supervisor" : "/admin";
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -30,18 +34,39 @@ const AdminCourses = () => {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("courses")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setCourses((data as any) ?? []);
+    if (isSupervisor && user) {
+      const { data: links } = await supabase
+        .from("course_supervisors")
+        .select("course_id")
+        .eq("supervisor_id", user.id);
+      const ids = ((links as any) ?? []).map((l: any) => l.course_id) as string[];
+      if (ids.length === 0) {
+        setCourses([]);
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .in("id", ids)
+        .order("created_at", { ascending: false });
+      if (error) toast.error(error.message);
+      setCourses((data as any) ?? []);
+    } else {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) toast.error(error.message);
+      setCourses((data as any) ?? []);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupervisor, user?.id]);
 
   const create = async () => {
     if (!name.trim()) {
@@ -82,9 +107,16 @@ const AdminCourses = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">المقررات</h1>
-            <p className="text-muted-foreground">إنشاء وإدارة المقررات الدراسية</p>
+            <h1 className="font-display text-3xl font-bold">
+              {isSupervisor ? "مقرراتي" : "المقررات"}
+            </h1>
+            <p className="text-muted-foreground">
+              {isSupervisor
+                ? "المقررات المسندة إليك من المسؤول"
+                : "إنشاء وإدارة المقررات الدراسية"}
+            </p>
           </div>
+          {!isSupervisor && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -118,6 +150,7 @@ const AdminCourses = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {loading ? (
@@ -128,7 +161,11 @@ const AdminCourses = () => {
           <Card>
             <CardContent className="py-16 text-center">
               <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">لا توجد مقررات بعد. أنشئ أول مقرر للبدء.</p>
+              <p className="text-muted-foreground">
+                {isSupervisor
+                  ? "لم يُسند إليك أي مقرر بعد"
+                  : "لا توجد مقررات بعد. أنشئ أول مقرر للبدء."}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -140,6 +177,7 @@ const AdminCourses = () => {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <BookOpen className="h-5 w-5" />
                     </div>
+                    {!isSupervisor && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -148,11 +186,12 @@ const AdminCourses = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    )}
                   </div>
                   <h3 className="font-display font-bold text-lg leading-tight mb-1">{c.name}</h3>
                   {c.code && <p className="text-xs font-mono text-muted-foreground mb-2">{c.code}</p>}
                   {c.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{c.description}</p>}
-                  <Link to={`/admin/courses/${c.id}`}>
+                  <Link to={`${baseRoute}/courses/${c.id}`}>
                     <Button variant="outline" className="w-full gap-2">
                       إدارة المقرر
                       <ChevronLeft className="h-4 w-4" />
