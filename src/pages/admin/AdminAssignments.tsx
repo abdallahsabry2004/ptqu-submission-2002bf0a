@@ -65,6 +65,9 @@ const statusLabels = {
 const statusOf = (s?: Submission) => (s ? statusLabels[s.status] : { label: "لم يُسلَّم", variant: "outline" as const });
 
 const AdminAssignments = () => {
+  const { role, user: currentUser } = useAuth();
+  const isSupervisor = role === "supervisor";
+  const baseRoute = isSupervisor ? "/supervisor" : "/admin";
   const [params] = useSearchParams();
   const initialCourse = params.get("course") ?? "";
 
@@ -97,12 +100,36 @@ const AdminAssignments = () => {
 
   const load = async () => {
     setLoading(true);
+    // For supervisors, restrict to their courses only
+    let allowedCourseIds: string[] | null = null;
+    if (isSupervisor && currentUser) {
+      const { data: links } = await supabase
+        .from("course_supervisors")
+        .select("course_id")
+        .eq("supervisor_id", currentUser.id);
+      allowedCourseIds = ((links as any) ?? []).map((l: any) => l.course_id);
+      if (allowedCourseIds!.length === 0) {
+        setCourses([]); setGroups([]); setAssignments([]); setSubmissions([]); setEnrollments(new Map());
+        setLoading(false);
+        return;
+      }
+    }
+
+    const courseQ = supabase.from("courses").select("id, name").order("name");
+    const groupQ = supabase.from("groups").select("id, name, course_id");
+    const assignQ = supabase.from("assignments").select("*").order("created_at", { ascending: false });
+    const subQ = supabase.from("submissions").select("*").order("submitted_at", { ascending: false });
+    const enrQ = supabase.from("course_students").select("course_id, student_id");
+
+    if (allowedCourseIds) {
+      courseQ.in("id", allowedCourseIds);
+      groupQ.in("course_id", allowedCourseIds);
+      assignQ.in("course_id", allowedCourseIds);
+      enrQ.in("course_id", allowedCourseIds);
+    }
+
     const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }, { data: enr }] = await Promise.all([
-      supabase.from("courses").select("id, name").order("name"),
-      supabase.from("groups").select("id, name, course_id"),
-      supabase.from("assignments").select("*").order("created_at", { ascending: false }),
-      supabase.from("submissions").select("*").order("submitted_at", { ascending: false }),
-      supabase.from("course_students").select("course_id, student_id"),
+      courseQ, groupQ, assignQ, subQ, enrQ,
     ]);
 
     const studentIds = Array.from(new Set([
@@ -145,7 +172,7 @@ const AdminAssignments = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [isSupervisor, currentUser?.id]);
 
   const courseGroups = groups.filter((g) => g.course_id === newCourse);
   const courseStudents = enrollments.get(newCourse) ?? [];
