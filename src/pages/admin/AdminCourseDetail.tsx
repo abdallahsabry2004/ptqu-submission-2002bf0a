@@ -296,6 +296,7 @@ const AdminCourseDetail = () => {
 
             <TabsContent value="students" className="space-y-4">
               <div className="flex flex-wrap justify-end gap-2">
+                {!isSupervisor && (
                 <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
@@ -332,7 +333,9 @@ const AdminCourseDetail = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                )}
 
+                {!isSupervisor && (
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -370,6 +373,13 @@ const AdminCourseDetail = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                )}
+
+                {isSupervisor && (
+                  <p className="text-xs text-muted-foreground self-center">
+                    إنشاء حسابات الطلاب يتم بواسطة المسؤول العام فقط
+                  </p>
+                )}
               </div>
 
               {students.length === 0 ? (
