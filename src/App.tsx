@@ -17,8 +17,6 @@ import AdminAssignments from "./pages/admin/AdminAssignments";
 import AdminAssignmentGroups from "./pages/admin/AdminAssignmentGroups";
 import AdminSupervisors from "./pages/admin/AdminSupervisors";
 import SupervisorDashboard from "./pages/supervisor/SupervisorDashboard";
-import SupervisorCourses from "./pages/supervisor/SupervisorCourses";
-import SupervisorAssignments from "./pages/supervisor/SupervisorAssignments";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentCourses from "./pages/student/StudentCourses";
 import StudentCourseDetail from "./pages/student/StudentCourseDetail";
@@ -51,8 +49,10 @@ const App = () => (
 
             {/* Supervisor */}
             <Route path="/supervisor" element={<ProtectedRoute requiredRole="supervisor"><SupervisorDashboard /></ProtectedRoute>} />
-            <Route path="/supervisor/courses" element={<ProtectedRoute requiredRole="supervisor"><SupervisorCourses /></ProtectedRoute>} />
-            <Route path="/supervisor/assignments" element={<ProtectedRoute requiredRole="supervisor"><SupervisorAssignments /></ProtectedRoute>} />
+            <Route path="/supervisor/courses" element={<ProtectedRoute requiredRole="supervisor"><AdminCourses /></ProtectedRoute>} />
+            <Route path="/supervisor/courses/:id" element={<ProtectedRoute requiredRole="supervisor"><AdminCourseDetail /></ProtectedRoute>} />
+            <Route path="/supervisor/students" element={<ProtectedRoute requiredRole="supervisor"><AdminStudents /></ProtectedRoute>} />
+            <Route path="/supervisor/assignments" element={<ProtectedRoute requiredRole="supervisor"><AdminAssignments /></ProtectedRoute>} />
             <Route path="/supervisor/assignments/:id/groups" element={<ProtectedRoute requiredRole="supervisor"><AdminAssignmentGroups /></ProtectedRoute>} />
 
             {/* Student */}
