@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { GraduationCap, Loader2, ArrowRight } from "lucide-react";
@@ -16,6 +17,10 @@ const Auth = () => {
   const [nationalId, setNationalId] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotNid, setForgotNid] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
 
   if (!authLoading && user && role) {
     const dest = role === "admin" ? "/admin" : role === "supervisor" ? "/supervisor" : "/student";
@@ -57,11 +62,44 @@ const Auth = () => {
       }
 
       toast.success("تم تسجيل الدخول");
-      navigate("/", { replace: true });
+      // Redirect goes through <Navigate /> above once role loads.
     } catch {
       toast.error("حدث خطأ أثناء تسجيل الدخول");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitForgot = async () => {
+    const nid = forgotNid.trim();
+    const email = forgotEmail.trim().toLowerCase();
+    if (!/^\d{5,20}$/.test(nid)) {
+      toast.error("الرقم القومي غير صالح");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("بريد إلكتروني غير صالح");
+      return;
+    }
+    setForgotBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("request-password-reset", {
+        body: { national_id: nid, email },
+      });
+      if (error) {
+        toast.error("تعذر إرسال الطلب، حاول لاحقاً");
+      } else if ((data as any)?.error) {
+        toast.error((data as any).error);
+      } else {
+        toast.success("إذا كانت البيانات صحيحة، تم إرسال رابط إعادة التعيين إلى بريدك");
+        setForgotOpen(false);
+        setForgotNid("");
+        setForgotEmail("");
+      }
+    } catch {
+      toast.error("حدث خطأ");
+    } finally {
+      setForgotBusy(false);
     }
   };
 
@@ -84,7 +122,7 @@ const Auth = () => {
                 id="nid"
                 inputMode="numeric"
                 dir="ltr"
-                placeholder="مثال: 30409302705170"
+                placeholder="مثال: 12345678901234"
                 value={nationalId}
                 onChange={(e) => setNationalId(e.target.value)}
                 autoComplete="username"
@@ -109,7 +147,51 @@ const Auth = () => {
               دخول
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm">
+          <div className="mt-6 flex flex-col items-center gap-3 text-sm">
+            <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+              <DialogTrigger asChild>
+                <button type="button" className="text-primary hover:underline">
+                  نسيت كلمة المرور؟
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>إعادة تعيين كلمة المرور</DialogTitle>
+                  <DialogDescription>
+                    أدخل رقمك القومي والبريد الإلكتروني المرتبط بحسابك. سيُرسَل رابط إعادة التعيين إذا كانت البيانات صحيحة.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>الرقم القومي</Label>
+                    <Input
+                      dir="ltr"
+                      inputMode="numeric"
+                      value={forgotNid}
+                      onChange={(e) => setForgotNid(e.target.value)}
+                      className="font-mono text-center"
+                      placeholder="12345678901234"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>البريد الإلكتروني</Label>
+                    <Input
+                      dir="ltr"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="example@email.com"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={submitForgot} disabled={forgotBusy} className="gap-2">
+                    {forgotBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    إرسال رابط الاستعادة
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Link to="/" className="text-muted-foreground hover:text-primary transition-smooth">
               ← العودة للصفحة الرئيسية
             </Link>
