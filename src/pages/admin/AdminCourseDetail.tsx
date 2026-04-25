@@ -399,14 +399,16 @@ const AdminCourseDetail = () => {
                             <p className="text-xs font-mono text-muted-foreground" dir="ltr">{s.national_id}</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => startEditStudent(s)}
-                              aria-label="تعديل الاسم"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                            {!isSupervisor && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => startEditStudent(s)}
+                                aria-label="تعديل الاسم"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -515,7 +517,7 @@ const AdminCourseDetail = () => {
               <Card>
                 <CardContent className="py-8 text-center space-y-3">
                   <p className="text-muted-foreground">لإدارة طلبات التسليم لهذا المقرر</p>
-                  <Link to={`/admin/assignments?course=${courseId}`}>
+                  <Link to={`${baseRoute}/assignments?course=${courseId}`}>
                     <Button>الذهاب لطلبات التسليم</Button>
                   </Link>
                 </CardContent>
