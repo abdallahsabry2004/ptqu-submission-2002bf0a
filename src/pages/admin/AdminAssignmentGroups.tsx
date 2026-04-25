@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Loader2, Plus, Trash2, Shuffle, Lock, Unlock, Users2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { genderFromNationalId, genderLabel, type Gender } from "@/lib/gender";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Profile {
   id: string;
@@ -27,6 +28,8 @@ interface AGroup {
 }
 
 const AdminAssignmentGroups = () => {
+  const { role } = useAuth();
+  const baseRoute = role === "supervisor" ? "/supervisor" : "/admin";
   const { id: assignmentId } = useParams<{ id: string }>();
   const [assignment, setAssignment] = useState<any>(null);
   const [students, setStudents] = useState<Profile[]>([]);
@@ -257,7 +260,7 @@ const AdminAssignmentGroups = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3 flex-wrap">
-          <Link to="/admin/assignments"><Button variant="ghost" size="icon"><ArrowRight className="h-5 w-5" /></Button></Link>
+          <Link to={`${baseRoute}/assignments`}><Button variant="ghost" size="icon"><ArrowRight className="h-5 w-5" /></Button></Link>
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-2xl md:text-3xl font-bold flex items-center gap-2 flex-wrap">
               <Users2 className="h-6 w-6 text-primary" />
