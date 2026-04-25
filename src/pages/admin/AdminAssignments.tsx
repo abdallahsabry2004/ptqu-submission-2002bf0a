@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,16 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive, Users2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2,
+  ChevronDown, ChevronUp, FolderArchive, Users2, FileBarChart,
+} from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { Link } from "react-router-dom";
+import { generateSubmissionsPdf } from "@/lib/pdfReport";
 
 interface Course { id: string; name: string }
 interface Group { id: string; name: string; course_id: string }
+interface Profile { id: string; full_name: string; national_id: string }
 interface Assignment {
   id: string;
   course_id: string;
@@ -30,11 +37,13 @@ interface Assignment {
   grouping_mode?: "none" | "random" | "alphabetical" | "manual" | "student_self";
   gender_filter?: "male" | "female" | "any";
   max_group_size?: number | null;
+  group_submission_mode?: "per_student" | "one_per_group";
 }
 interface Submission {
   id: string;
   assignment_id: string;
   student_id: string;
+  group_id?: string | null;
   file_path: string;
   file_name: string;
   status: "pending" | "approved" | "rejected" | "resubmit_requested";
@@ -51,6 +60,8 @@ const statusLabels = {
   resubmit_requested: { label: "إعادة تسليم مطلوبة", variant: "outline" as const },
 };
 
+const statusOf = (s?: Submission) => (s ? statusLabels[s.status] : { label: "لم يُسلَّم", variant: "outline" as const });
+
 const AdminAssignments = () => {
   const [params] = useSearchParams();
   const initialCourse = params.get("course") ?? "";
@@ -59,6 +70,7 @@ const AdminAssignments = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [enrollments, setEnrollments] = useState<Map<string, Profile[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filterCourse, setFilterCourse] = useState(initialCourse);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -66,8 +78,9 @@ const AdminAssignments = () => {
   // create dialog
   const [open, setOpen] = useState(false);
   const [newCourse, setNewCourse] = useState(initialCourse);
-  const [scope, setScope] = useState<"course" | "group">("course");
+  const [scope, setScope] = useState<"course" | "group" | "selected_students">("course");
   const [groupId, setGroupId] = useState("");
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [due, setDue] = useState("");
@@ -78,26 +91,44 @@ const AdminAssignments = () => {
   const [groupingMode, setGroupingMode] = useState<"none" | "random" | "alphabetical" | "manual" | "student_self">("none");
   const [genderFilter, setGenderFilter] = useState<"any" | "male" | "female">("any");
   const [maxGroupSize, setMaxGroupSize] = useState<string>("");
+  const [submissionMode, setSubmissionMode] = useState<"per_student" | "one_per_group">("per_student");
 
   const load = async () => {
     setLoading(true);
-    const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }] = await Promise.all([
+    const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }, { data: enr }] = await Promise.all([
       supabase.from("courses").select("id, name").order("name"),
       supabase.from("groups").select("id, name, course_id"),
       supabase.from("assignments").select("*").order("created_at", { ascending: false }),
       supabase.from("submissions").select("*").order("submitted_at", { ascending: false }),
+      supabase.from("course_students").select("course_id, student_id"),
     ]);
 
-    // Fetch student profiles separately and merge (avoids embed FK requirement)
-    const studentIds = Array.from(new Set(((subs as any) ?? []).map((s: any) => s.student_id))) as string[];
-    let profileMap = new Map<string, { full_name: string; national_id: string }>();
+    const studentIds = Array.from(new Set([
+      ...((subs as any) ?? []).map((s: any) => s.student_id),
+      ...((enr as any) ?? []).map((e: any) => e.student_id),
+    ])) as string[];
+    let profileMap = new Map<string, Profile>();
     if (studentIds.length > 0) {
       const { data: profs } = await supabase
         .from("profiles")
         .select("id, full_name, national_id")
         .in("id", studentIds);
-      profileMap = new Map((profs ?? []).map((p: any) => [p.id, { full_name: p.full_name, national_id: p.national_id }]));
+      profileMap = new Map((profs ?? []).map((p: any) => [p.id, p as Profile]));
     }
+
+    // Build enrollment map: course_id → sorted Profile[]
+    const enrMap = new Map<string, Profile[]>();
+    ((enr as any) ?? []).forEach((row: any) => {
+      const p = profileMap.get(row.student_id);
+      if (!p) return;
+      const list = enrMap.get(row.course_id) ?? [];
+      list.push(p);
+      enrMap.set(row.course_id, list);
+    });
+    enrMap.forEach((list, k) => {
+      list.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+      enrMap.set(k, list);
+    });
 
     setCourses((cs as any) ?? []);
     setGroups((gs as any) ?? []);
@@ -108,45 +139,71 @@ const AdminAssignments = () => {
         profiles: profileMap.get(s.student_id) ?? null,
       }))
     );
+    setEnrollments(enrMap);
     setLoading(false);
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const courseGroups = groups.filter((g) => g.course_id === newCourse);
+  const courseStudents = enrollments.get(newCourse) ?? [];
 
   const create = async () => {
     if (!newCourse) return toast.error("اختر المقرر");
     if (!title.trim()) return toast.error("العنوان مطلوب");
     if (scope === "group" && !groupId) return toast.error("اختر المجموعة");
+    if (scope === "selected_students" && selectedStudents.length === 0)
+      return toast.error("اختر طالب واحد على الأقل");
 
     setCreating(true);
+    // For "selected_students" we create a one-off group automatically
+    let realScope: "course" | "group" = scope === "selected_students" ? "group" : (scope as any);
+    let realGroupId: string | null = scope === "group" ? groupId : null;
+
+    if (scope === "selected_students") {
+      const tmpName = `${title.trim()} - مجموعة مخصصة`;
+      const { data: g, error: gErr } = await supabase
+        .from("groups")
+        .insert({ course_id: newCourse, name: tmpName })
+        .select("id")
+        .single();
+      if (gErr || !g) {
+        toast.error(gErr?.message ?? "تعذر إنشاء المجموعة");
+        setCreating(false);
+        return;
+      }
+      const rows = selectedStudents.map((sid) => ({ group_id: (g as any).id, student_id: sid }));
+      const { error: mErr } = await supabase.from("group_members").insert(rows);
+      if (mErr) {
+        toast.error(mErr.message);
+        setCreating(false);
+        return;
+      }
+      realGroupId = (g as any).id;
+    }
+
     const { error } = await supabase.from("assignments").insert({
       course_id: newCourse,
       title: title.trim(),
       description: desc.trim() || null,
       due_date: due ? new Date(due).toISOString() : null,
-      scope,
-      group_id: scope === "group" ? groupId : null,
+      scope: realScope,
+      group_id: realGroupId,
       late_policy: latePol,
       grouping_mode: groupingMode,
       gender_filter: genderFilter,
       max_group_size: maxGroupSize ? Math.max(1, parseInt(maxGroupSize, 10)) : null,
+      group_submission_mode: groupingMode !== "none" ? submissionMode : "per_student",
     });
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("تم إنشاء طلب التسليم");
       setOpen(false);
-      setTitle("");
-      setDesc("");
-      setDue("");
-      setGroupId("");
-      setGroupingMode("none");
-      setGenderFilter("any");
-      setMaxGroupSize("");
+      setTitle(""); setDesc(""); setDue(""); setGroupId("");
+      setSelectedStudents([]);
+      setGroupingMode("none"); setGenderFilter("any"); setMaxGroupSize("");
+      setSubmissionMode("per_student");
       load();
     }
     setCreating(false);
@@ -156,34 +213,21 @@ const AdminAssignments = () => {
     if (!confirm("حذف طلب التسليم وكل تسليماته؟")) return;
     const { error } = await supabase.from("assignments").delete().eq("id", id);
     if (error) toast.error(error.message);
-    else {
-      toast.success("تم الحذف");
-      load();
-    }
+    else { toast.success("تم الحذف"); load(); }
   };
 
   const updateSubmission = async (sid: string, status: Submission["status"], notes?: string) => {
     const { error } = await supabase
       .from("submissions")
-      .update({
-        status,
-        reviewer_notes: notes ?? null,
-        reviewed_at: new Date().toISOString(),
-      })
+      .update({ status, reviewer_notes: notes ?? null, reviewed_at: new Date().toISOString() })
       .eq("id", sid);
     if (error) toast.error(error.message);
-    else {
-      toast.success("تم تحديث الحالة");
-      load();
-    }
+    else { toast.success("تم تحديث الحالة"); load(); }
   };
 
   const downloadOne = async (sub: Submission) => {
     const { data, error } = await supabase.storage.from("submissions").createSignedUrl(sub.file_path, 600);
-    if (error || !data) {
-      toast.error("فشل تحميل الملف");
-      return;
-    }
+    if (error || !data) return toast.error("فشل تحميل الملف");
     const a = document.createElement("a");
     a.href = data.signedUrl;
     a.download = `${sub.profiles?.national_id ?? "student"}_${sub.file_name}`;
@@ -213,6 +257,56 @@ const AdminAssignments = () => {
     toast.success("تم التحميل");
   };
 
+  const downloadPdfReport = async (a: Assignment) => {
+    const targetStudents = await getAssignmentTargetStudents(a);
+    const subsByStudent = new Map<string, Submission>();
+    submissions.filter((s) => s.assignment_id === a.id).forEach((s) => {
+      subsByStudent.set(s.student_id, s);
+    });
+    const rows = targetStudents.map((p) => {
+      const s = subsByStudent.get(p.id);
+      return {
+        national_id: p.national_id,
+        full_name: p.full_name,
+        status_label: statusOf(s).label,
+        is_late: !!s?.is_late,
+        submitted_at: s?.submitted_at ?? null,
+        reviewer_notes: s?.reviewer_notes ?? null,
+      };
+    });
+    const blob = await generateSubmissionsPdf(
+      {
+        title: a.title,
+        course_name: courseName(a.course_id),
+        due_date: a.due_date ? new Date(a.due_date).toLocaleString("ar-EG") : null,
+        generated_at: new Date().toLocaleString("ar-EG"),
+      },
+      rows
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${a.title.replace(/[\\/:*?"<>|]/g, "_")}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getAssignmentTargetStudents = async (a: Assignment): Promise<Profile[]> => {
+    if (a.scope === "course") {
+      return enrollments.get(a.course_id) ?? [];
+    }
+    if (a.scope === "group" && a.group_id) {
+      const { data } = await supabase
+        .from("group_members")
+        .select("student_id")
+        .eq("group_id", a.group_id);
+      const ids = ((data as any) ?? []).map((r: any) => r.student_id) as string[];
+      const all = enrollments.get(a.course_id) ?? [];
+      return all.filter((p) => ids.includes(p.id));
+    }
+    return [];
+  };
+
   const filtered = useMemo(() => {
     if (!filterCourse) return assignments;
     return assignments.filter((a) => a.course_id === filterCourse);
@@ -236,19 +330,17 @@ const AdminAssignments = () => {
                 طلب جديد
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>إنشاء طلب تسليم</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
                   <Label>المقرر *</Label>
-                  <Select value={newCourse} onValueChange={(v) => { setNewCourse(v); setGroupId(""); }}>
+                  <Select value={newCourse} onValueChange={(v) => { setNewCourse(v); setGroupId(""); setSelectedStudents([]); }}>
                     <SelectTrigger><SelectValue placeholder="اختر مقرر" /></SelectTrigger>
                     <SelectContent>
-                      {courses.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {courses.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -282,7 +374,8 @@ const AdminAssignments = () => {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="course">كل طلاب المقرر</SelectItem>
-                      <SelectItem value="group">مجموعة محددة فقط</SelectItem>
+                      <SelectItem value="group">مجموعة جاهزة في المقرر</SelectItem>
+                      <SelectItem value="selected_students">طلاب محددون فقط</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -294,11 +387,50 @@ const AdminAssignments = () => {
                         <SelectValue placeholder={courseGroups.length === 0 ? "لا توجد مجموعات في المقرر" : "اختر مجموعة"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {courseGroups.map((g) => (
-                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                        ))}
+                        {courseGroups.map((g) => (<SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>))}
                       </SelectContent>
                     </Select>
+                  </div>
+                )}
+                {scope === "selected_students" && (
+                  <div className="space-y-2">
+                    <Label>اختر الطلاب من قائمة المقرر *</Label>
+                    {courseStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground border rounded-lg p-3">لا يوجد طلاب في المقرر</p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>تم الاختيار: {selectedStudents.length} / {courseStudents.length}</span>
+                          <button
+                            type="button"
+                            className="text-primary hover:underline"
+                            onClick={() => setSelectedStudents(
+                              selectedStudents.length === courseStudents.length
+                                ? []
+                                : courseStudents.map((s) => s.id)
+                            )}
+                          >
+                            {selectedStudents.length === courseStudents.length ? "إلغاء الكل" : "اختر الكل"}
+                          </button>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto border rounded-lg divide-y">
+                          {courseStudents.map((s) => (
+                            <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer">
+                              <Checkbox
+                                checked={selectedStudents.includes(s.id)}
+                                onCheckedChange={(v) =>
+                                  setSelectedStudents((prev) => v ? [...prev, s.id] : prev.filter((x) => x !== s.id))
+                                }
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{s.full_name}</p>
+                                <p className="text-xs font-mono text-muted-foreground" dir="ltr">{s.national_id}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -318,30 +450,48 @@ const AdminAssignments = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>تصفية حسب الجنس</Label>
-                      <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">الجميع (مختلط)</SelectItem>
-                          <SelectItem value="male">ذكور فقط</SelectItem>
-                          <SelectItem value="female">إناث فقط</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {groupingMode !== "none" && (
+                      <div className="space-y-2">
+                        <Label>تصفية حسب الجنس</Label>
+                        <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">قائمة مدمجة (ذكور وإناث)</SelectItem>
+                            <SelectItem value="male">ذكور فقط</SelectItem>
+                            <SelectItem value="female">إناث فقط</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   {groupingMode !== "none" && (
-                    <div className="space-y-2">
-                      <Label>عدد الأعضاء في كل مجموعة</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={maxGroupSize}
-                        onChange={(e) => setMaxGroupSize(e.target.value)}
-                        placeholder="مثال: 5"
-                      />
-                      <p className="text-xs text-muted-foreground">سيتم استخدام هذا العدد كحد أقصى لكل مجموعة. بعد إنشاء الطلب اضغط "إدارة المجموعات" لتنفيذ التقسيم.</p>
-                    </div>
+                    <>
+                      <div className="space-y-2">
+                        <Label>عدد الأعضاء في كل مجموعة</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={maxGroupSize}
+                          onChange={(e) => setMaxGroupSize(e.target.value)}
+                          placeholder="مثال: 5"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {groupingMode === "manual" || groupingMode === "student_self"
+                            ? "ستحدد التقسيم الفعلي بعد إنشاء الطلب من زر «المجموعات»."
+                            : "سيتم تنفيذ التقسيم تلقائياً بعد الإنشاء، وستُسأل عن التعامل مع الطلاب المتبقّين إن وُجدوا."}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>طريقة التسليم لكل مجموعة</Label>
+                        <Select value={submissionMode} onValueChange={(v: any) => setSubmissionMode(v)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="one_per_group">تسليم واحد لكل مجموعة (يرفع أحدهم ويعدله الجميع)</SelectItem>
+                            <SelectItem value="per_student">كل طالب يسلّم نسخته الخاصة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -358,29 +508,21 @@ const AdminAssignments = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <Label className="text-sm">تصفية بالمقرر:</Label>
           <Select value={filterCourse || "all"} onValueChange={(v) => setFilterCourse(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="كل المقررات" />
-            </SelectTrigger>
+            <SelectTrigger className="w-64"><SelectValue placeholder="كل المقررات" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل المقررات</SelectItem>
-              {courses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
+              {courses.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <FileText className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">لا توجد طلبات تسليم</p>
-            </CardContent>
-          </Card>
+          <Card><CardContent className="py-16 text-center">
+            <FileText className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground">لا توجد طلبات تسليم</p>
+          </CardContent></Card>
         ) : (
           <div className="space-y-3">
             {filtered.map((a) => {
@@ -406,18 +548,19 @@ const AdminAssignments = () => {
                           {pending > 0 && <Badge variant="secondary" className="gap-1">{pending} قيد المراجعة</Badge>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadPdfReport(a)}>
+                          <FileBarChart className="h-4 w-4" /> تقرير PDF
+                        </Button>
                         {subs.length > 0 && (
                           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadAll(a.id)}>
-                            <FolderArchive className="h-4 w-4" />
-                            تحميل الكل
+                            <FolderArchive className="h-4 w-4" /> تحميل الكل
                           </Button>
                         )}
                         {a.grouping_mode && a.grouping_mode !== "none" && (
                           <Link to={`/admin/assignments/${a.id}/groups`}>
                             <Button variant="outline" size="sm" className="gap-1.5">
-                              <Users2 className="h-4 w-4" />
-                              المجموعات
+                              <Users2 className="h-4 w-4" /> المجموعات
                             </Button>
                           </Link>
                         )}
@@ -432,73 +575,13 @@ const AdminAssignments = () => {
                   </CardHeader>
                   {isOpen && (
                     <CardContent className="pt-0">
-                      {subs.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">لم يسلّم أحد بعد</p>
-                      ) : (
-                        <ul className="divide-y divide-border border rounded-lg overflow-hidden">
-                          {subs.map((s) => {
-                            const sl = statusLabels[s.status];
-                            return (
-                              <li key={s.id} className="px-4 py-3">
-                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="font-semibold">{s.profiles?.full_name}</p>
-                                      <span className="text-xs font-mono text-muted-foreground" dir="ltr">{s.profiles?.national_id}</span>
-                                      <Badge variant={sl.variant}>{sl.label}</Badge>
-                                      {s.is_late && <Badge variant="destructive" className="text-xs">متأخر</Badge>}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      📎 {s.file_name} · {new Date(s.submitted_at).toLocaleString("ar-EG")}
-                                    </p>
-                                    {s.reviewer_notes && (
-                                      <p className="text-xs text-muted-foreground mt-1">💬 {s.reviewer_notes}</p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" title="تحميل" onClick={() => downloadOne(s)}>
-                                      <Download className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      title="قبول"
-                                      className="text-success hover:bg-success/10"
-                                      onClick={() => updateSubmission(s.id, "approved")}
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      title="رفض"
-                                      className="text-destructive hover:bg-destructive/10"
-                                      onClick={() => {
-                                        const note = prompt("سبب الرفض (اختياري):") ?? undefined;
-                                        updateSubmission(s.id, "rejected", note);
-                                      }}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      title="طلب إعادة تسليم"
-                                      className="text-warning hover:bg-warning/10"
-                                      onClick={() => {
-                                        const note = prompt("ملاحظات إعادة التسليم:") ?? undefined;
-                                        updateSubmission(s.id, "resubmit_requested", note);
-                                      }}
-                                    >
-                                      <RefreshCw className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
+                      <RosterView
+                        assignment={a}
+                        submissions={subs}
+                        getTargets={() => getAssignmentTargetStudents(a)}
+                        onUpdate={updateSubmission}
+                        onDownload={downloadOne}
+                      />
                     </CardContent>
                   )}
                 </Card>
@@ -510,5 +593,88 @@ const AdminAssignments = () => {
     </AppLayout>
   );
 };
+
+/** Shows ALL targeted students with their submission status (or "لم يُسلَّم"). */
+function RosterView({
+  assignment, submissions, getTargets, onUpdate, onDownload,
+}: {
+  assignment: Assignment;
+  submissions: Submission[];
+  getTargets: () => Promise<Profile[]>;
+  onUpdate: (sid: string, status: Submission["status"], notes?: string) => void;
+  onDownload: (s: Submission) => void;
+}) {
+  const [targets, setTargets] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    getTargets().then((t) => { setTargets(t); setLoading(false); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignment.id]);
+
+  if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  const subByStudent = new Map<string, Submission>();
+  submissions.forEach((s) => subByStudent.set(s.student_id, s));
+
+  if (targets.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-4">لا يوجد طلاب مستهدفون</p>;
+  }
+
+  return (
+    <ul className="divide-y divide-border border rounded-lg overflow-hidden">
+      {targets.map((p) => {
+        const s = subByStudent.get(p.id);
+        const sl = s ? statusLabels[s.status] : { label: "لم يُسلَّم", variant: "outline" as const };
+        return (
+          <li key={p.id} className="px-4 py-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold">{p.full_name}</p>
+                  <span className="text-xs font-mono text-muted-foreground" dir="ltr">{p.national_id}</span>
+                  <Badge variant={sl.variant as any}>{sl.label}</Badge>
+                  {s?.is_late && <Badge variant="destructive" className="text-xs">متأخر</Badge>}
+                </div>
+                {s ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    📎 {s.file_name} · {new Date(s.submitted_at).toLocaleString("ar-EG")}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">لم يقم الطالب برفع ملف بعد</p>
+                )}
+                {s?.reviewer_notes && (
+                  <p className="text-xs text-muted-foreground mt-1">💬 {s.reviewer_notes}</p>
+                )}
+              </div>
+              {s && (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" title="تحميل" onClick={() => onDownload(s)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="قبول" className="text-success hover:bg-success/10" onClick={() => onUpdate(s.id, "approved")}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="رفض" className="text-destructive hover:bg-destructive/10" onClick={() => {
+                    const note = prompt("سبب الرفض (اختياري):") ?? undefined;
+                    onUpdate(s.id, "rejected", note);
+                  }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="طلب إعادة تسليم" className="text-warning hover:bg-warning/10" onClick={() => {
+                    const note = prompt("ملاحظات إعادة التسليم:") ?? undefined;
+                    onUpdate(s.id, "resubmit_requested", note);
+                  }}>
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default AdminAssignments;

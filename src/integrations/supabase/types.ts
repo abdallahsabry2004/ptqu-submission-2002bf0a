@@ -97,6 +97,7 @@ export type Database = {
           due_date: string | null
           gender_filter: Database["public"]["Enums"]["gender_filter"]
           group_id: string | null
+          group_submission_mode: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode: Database["public"]["Enums"]["grouping_mode"]
           groups_locked: boolean
           id: string
@@ -114,6 +115,7 @@ export type Database = {
           due_date?: string | null
           gender_filter?: Database["public"]["Enums"]["gender_filter"]
           group_id?: string | null
+          group_submission_mode?: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
           groups_locked?: boolean
           id?: string
@@ -131,6 +133,7 @@ export type Database = {
           due_date?: string | null
           gender_filter?: Database["public"]["Enums"]["gender_filter"]
           group_id?: string | null
+          group_submission_mode?: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
           groups_locked?: boolean
           id?: string
@@ -394,8 +397,10 @@ export type Database = {
           file_name: string
           file_path: string
           file_size: number | null
+          group_id: string | null
           id: string
           is_late: boolean
+          last_edited_by: string | null
           mime_type: string | null
           reviewed_at: string | null
           reviewer_notes: string | null
@@ -409,8 +414,10 @@ export type Database = {
           file_name: string
           file_path: string
           file_size?: number | null
+          group_id?: string | null
           id?: string
           is_late?: boolean
+          last_edited_by?: string | null
           mime_type?: string | null
           reviewed_at?: string | null
           reviewer_notes?: string | null
@@ -424,8 +431,10 @@ export type Database = {
           file_name?: string
           file_path?: string
           file_size?: number | null
+          group_id?: string | null
           id?: string
           is_late?: boolean
+          last_edited_by?: string | null
           mime_type?: string | null
           reviewed_at?: string | null
           reviewer_notes?: string | null
@@ -505,6 +514,7 @@ export type Database = {
       app_role: "admin" | "student" | "supervisor"
       assignment_scope: "course" | "group"
       gender_filter: "male" | "female" | "any"
+      group_submission_mode: "per_student" | "one_per_group"
       grouping_mode:
         | "none"
         | "random"
@@ -648,6 +658,7 @@ export const Constants = {
       app_role: ["admin", "student", "supervisor"],
       assignment_scope: ["course", "group"],
       gender_filter: ["male", "female", "any"],
+      group_submission_mode: ["per_student", "one_per_group"],
       grouping_mode: [
         "none",
         "random",
