@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,9 @@ interface Group {
 }
 
 const AdminCourseDetail = () => {
+  const { role } = useAuth();
+  const isSupervisor = role === "supervisor";
+  const baseRoute = isSupervisor ? "/supervisor" : "/admin";
   const { id: courseId } = useParams<{ id: string }>();
   const [courseName, setCourseName] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -258,7 +262,7 @@ const AdminCourseDetail = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Link to="/admin/courses">
+          <Link to={`${baseRoute}/courses`}>
             <Button variant="ghost" size="icon">
               <ArrowRight className="h-5 w-5" />
             </Button>
