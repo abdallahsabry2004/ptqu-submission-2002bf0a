@@ -37,8 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("user_roles").select("role").eq("user_id", uid),
     ]);
     setProfile((prof as any) ?? null);
-    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-    setRole(isAdmin ? "admin" : roles && roles.length > 0 ? "student" : null);
+    const list = (roles ?? []).map((r: any) => r.role as string);
+    if (list.includes("admin")) setRole("admin");
+    else if (list.includes("supervisor")) setRole("supervisor");
+    else if (list.includes("student")) setRole("student");
+    else setRole(null);
   };
 
   useEffect(() => {
