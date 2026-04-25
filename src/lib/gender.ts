@@ -11,6 +11,15 @@ export function genderFromNationalId(nid?: string | null): Gender {
   return d % 2 === 1 ? "male" : "female";
 }
 
+/** Validate that we can derive a deterministic gender from the National ID */
+export function isValidEgyptianNationalId(nid?: string | null): boolean {
+  if (!nid) return false;
+  const cleaned = nid.replace(/\D/g, "");
+  if (cleaned.length !== 14) return false;
+  const d = parseInt(cleaned.charAt(12), 10);
+  return !Number.isNaN(d);
+}
+
 export const genderLabel: Record<Gender, string> = {
   male: "ذكر",
   female: "أنثى",
