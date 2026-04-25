@@ -36,10 +36,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
-    const { national_id, redirect_to } = await req.json();
+    const { national_id, email, redirect_to } = await req.json();
     const nid = String(national_id ?? "").trim();
+    const providedEmail = String(email ?? "").trim().toLowerCase();
     if (!/^\d{5,20}$/.test(nid)) {
       return new Response(JSON.stringify({ error: "الرقم القومي غير صالح" }), { headers: cors, status: 400 });
+    }
+    if (providedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(providedEmail)) {
+      return new Response(JSON.stringify({ error: "بريد إلكتروني غير صالح" }), { headers: cors, status: 400 });
     }
 
     const validatedRedirect = safeRedirect(redirect_to);
@@ -56,24 +60,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // Always return success to avoid leaking which national_ids exist
-    if (!profile || !profile.email) {
+    const emailMatches =
+      !!profile?.email &&
+      !!providedEmail &&
+      profile.email.toLowerCase() === providedEmail;
+
+    if (!emailMatches) {
       return new Response(
-        JSON.stringify({ ok: true, message: "إذا كان البريد مرتبط، تم إرسال رسالة استعادة." }),
+        JSON.stringify({ ok: true, message: "إذا كانت البيانات صحيحة، تم إرسال رابط الاستعادة." }),
         { headers: cors }
       );
     }
 
-    // Generate a recovery link for the linked email
-    await supabase.auth.admin.generateLink({
-      type: "recovery",
-      email: `${nid}@students.local`,
-      options: { redirectTo: validatedRedirect },
-    });
+    // Try every internal-email pattern (student/supervisor/admin) — only one will match.
+    const candidates = [
+      `${nid}@students.local`,
+      `${nid}@supervisors.local`,
+      `${nid}@admin.local`,
+    ];
+    for (const internal of candidates) {
+      try {
+        await supabase.auth.admin.generateLink({
+          type: "recovery",
+          email: internal,
+          options: { redirectTo: validatedRedirect },
+        });
+      } catch { /* ignore individual failures */ }
+    }
 
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "إذا كان البريد مرتبط، تم إرسال رسالة استعادة.",
+        message: "إذا كانت البيانات صحيحة، تم إرسال رابط الاستعادة.",
       }),
       { headers: cors }
     );
