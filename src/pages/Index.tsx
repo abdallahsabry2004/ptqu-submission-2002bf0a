@@ -1,10 +1,28 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, ShieldCheck, Upload, FolderArchive, BookOpen, Users } from "lucide-react";
 import { AppFooter } from "@/components/AppFooter";
 import heroImg from "@/assets/hero-physiotherapy.jpg";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
+  const { user, role, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If already signed in, jump straight into the role dashboard
+  if (user && role) {
+    const dest = role === "admin" ? "/admin" : role === "supervisor" ? "/supervisor" : "/student";
+    return <Navigate to={dest} replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
