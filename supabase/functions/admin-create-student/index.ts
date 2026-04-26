@@ -112,6 +112,7 @@ async function createStudentAccount(supabase: any, national_id: string, full_nam
     national_id,
     full_name,
     must_change_password: true,
+    current_password: national_id,
   });
   if (pErr) return { error: "تعذر حفظ بيانات الطالب" };
   const { error: rErr } = await supabase.from("user_roles").insert({
