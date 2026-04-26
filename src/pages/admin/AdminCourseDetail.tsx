@@ -35,6 +35,7 @@ const AdminCourseDetail = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"students" | "groups" | "assignments">("students");
 
   // add student form
   const [addOpen, setAddOpen] = useState(false);
@@ -58,9 +59,9 @@ const AdminCourseDetail = () => {
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
 
-  const load = async () => {
+  const load = async (showSpinner = true) => {
     if (!courseId) return;
-    setLoading(true);
+    if (showSpinner) setLoading(true);
     const [{ data: c }, { data: cs }, { data: gs }] = await Promise.all([
       supabase.from("courses").select("name").eq("id", courseId).single(),
       supabase
@@ -243,7 +244,8 @@ const AdminCourseDetail = () => {
     setGroupName("");
     setGroupMembers([]);
     setGroupOpen(false);
-    await load();
+    // Refresh in-place without unmounting the Tabs (keeps user on Groups tab)
+    await load(false);
     setCreatingGroup(false);
   };
 
@@ -280,7 +282,7 @@ const AdminCourseDetail = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs defaultValue="students">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
             <TabsList>
               <TabsTrigger value="students" className="gap-2">
                 <Users className="h-4 w-4" />
