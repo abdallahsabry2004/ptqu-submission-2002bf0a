@@ -223,10 +223,11 @@ const AdminCourseDetail = () => {
     const { data: g, error: gErr } = await supabase
       .from("groups")
       .insert({ course_id: courseId!, name: groupName.trim() })
-      .select()
+      .select("id, name")
       .single();
     if (gErr || !g) {
-      toast.error(gErr?.message ?? "خطأ");
+      console.error("createGroup error", gErr);
+      toast.error(gErr?.message ?? "تعذر إنشاء المجموعة");
       setCreatingGroup(false);
       return;
     }
@@ -234,14 +235,15 @@ const AdminCourseDetail = () => {
       .from("group_members")
       .insert(groupMembers.map((sid) => ({ group_id: g.id, student_id: sid })));
     if (mErr) {
-      toast.error(mErr.message);
+      console.error("group_members insert error", mErr);
+      toast.error(`المجموعة أُنشئت لكن تعذّرت إضافة الأعضاء: ${mErr.message}`);
     } else {
       toast.success("تم إنشاء المجموعة");
-      setGroupName("");
-      setGroupMembers([]);
-      setGroupOpen(false);
-      load();
     }
+    setGroupName("");
+    setGroupMembers([]);
+    setGroupOpen(false);
+    await load();
     setCreatingGroup(false);
   };
 
