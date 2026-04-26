@@ -125,6 +125,31 @@ const AdminStudents = () => {
     }
   };
 
+  // Supervisor: remove student from all of supervisor's own courses
+  const removeFromMyCourses = async (studentId: string) => {
+    if (!user) return;
+    if (!confirm("إزالة الطالب من جميع مقرراتك؟ (لن يُحذف حسابه من المنصة)")) return;
+    const { data: links } = await supabase
+      .from("course_supervisors")
+      .select("course_id")
+      .eq("supervisor_id", user.id);
+    const courseIds = ((links as any) ?? []).map((l: any) => l.course_id);
+    if (courseIds.length === 0) {
+      toast.error("لا توجد مقررات تابعة لك");
+      return;
+    }
+    const { error } = await supabase
+      .from("course_students")
+      .delete()
+      .in("course_id", courseIds)
+      .eq("student_id", studentId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("تمت الإزالة من مقرراتك");
+      load();
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -196,6 +221,18 @@ const AdminStudents = () => {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                         </>
+                      )}
+                      {isSupervisor && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => removeFromMyCourses(s.id)}
+                          aria-label="إزالة من مقرراتي"
+                          title="إزالة من مقرراتي"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </li>
