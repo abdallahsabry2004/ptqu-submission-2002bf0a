@@ -51,8 +51,8 @@ Deno.serve(async (req) => {
     const full_name = String(body.full_name ?? "").trim();
     const course_id = body.course_id ? String(body.course_id) : null;
 
-    if (!/^\d{5,20}$/.test(national_id)) {
-      return new Response(JSON.stringify({ error: "الرقم القومي غير صالح" }), { headers: cors, status: 400 });
+    if (!/^\d{14}$/.test(national_id)) {
+      return new Response(JSON.stringify({ error: "الرقم القومي يجب أن يكون 14 رقمًا بالضبط" }), { headers: cors, status: 400 });
     }
     if (full_name.length < 2 || full_name.length > 120) {
       return new Response(JSON.stringify({ error: "الاسم غير صالح" }), { headers: cors, status: 400 });
@@ -137,8 +137,8 @@ async function handleBulk(supabase: any, body: any) {
     const nid = String(row.national_id ?? "").trim();
     const name = String(row.full_name ?? "").trim();
 
-    if (!/^\d{5,20}$/.test(nid)) {
-      results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: "رقم قومي غير صالح" });
+    if (!/^\d{14}$/.test(nid)) {
+      results.skipped.push({ row: i + 1, national_id: nid, full_name: name, reason: "الرقم القومي ليس 14 رقمًا" });
       continue;
     }
     if (name.length < 2 || name.length > 120) {
