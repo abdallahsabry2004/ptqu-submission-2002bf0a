@@ -47,7 +47,7 @@ const AdminAssignmentGroups = () => {
     setLoading(true);
     const { data: a } = await supabase
       .from("assignments")
-      .select("id, title, course_id, grouping_mode, gender_filter, max_group_size, groups_locked")
+      .select("id, title, course_id, grouping_mode, gender_filter, gender_split, max_group_size, groups_locked")
       .eq("id", assignmentId)
       .single();
     setAssignment(a);
@@ -182,6 +182,48 @@ const AdminAssignmentGroups = () => {
     if (!size || size < 1) return toast.error("حدد عدد الأعضاء في كل مجموعة من إعدادات الطلب");
     if (students.length === 0) return toast.error("لا يوجد طلاب مؤهلون");
     if (!confirm(`سيتم حذف المجموعات الحالية وإعادة التقسيم ${mode === "random" ? "عشوائياً" : "أبجدياً"}. متابعة؟`)) return;
+
+    const split = (assignment?.gender_split as "mixed" | "separated") ?? "mixed";
+    const orderList = (list: Profile[]) => {
+      const arr = [...list];
+      if (mode === "alphabetical") {
+        arr.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+      } else {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      return arr;
+    };
+
+    // Build chunked plan, asking about remainders
+    const planFor = async (list: Profile[], labelPrefix: string): Promise<Profile[][]> => {
+      const ordered = orderList(list);
+      if (ordered.length === 0) return [];
+      const fullCount = Math.floor(ordered.length / size);
+      const remainder = ordered.length - fullCount * size;
+      const chunks: Profile[][] = [];
+      for (let i = 0; i < fullCount; i++) chunks.push(ordered.slice(i * size, (i + 1) * size));
+      if (remainder > 0) {
+        if (fullCount === 0) {
+          // not enough to make even one full group → make one anyway
+          chunks.push(ordered.slice(fullCount * size));
+        } else {
+          const msg = `${labelPrefix}يوجد ${remainder} طلاب متبقين بعد التقسيم بحجم ${size}.\n\nاضغط "موافق" لإنشاء مجموعة منفصلة لهم،\nأو "إلغاء" لتوزيعهم على المجموعات الموجودة.`;
+          const separate = confirm(msg);
+          const rest = ordered.slice(fullCount * size);
+          if (separate) {
+            chunks.push(rest);
+          } else {
+            // distribute one-by-one across existing chunks (round-robin)
+            rest.forEach((p, i) => chunks[i % chunks.length].push(p));
+          }
+        }
+      }
+      return chunks;
+    };
+
     setBusy(true);
 
     // wipe existing
@@ -190,31 +232,31 @@ const AdminAssignmentGroups = () => {
       await supabase.from("assignment_groups").delete().in("id", existingIds);
     }
 
-    // order students
-    const ordered = [...students];
-    if (mode === "alphabetical") {
-      ordered.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+    let allChunks: Array<{ name: string; members: Profile[] }> = [];
+
+    if (split === "separated") {
+      const males = students.filter((s) => s.gender === "male");
+      const females = students.filter((s) => s.gender === "female");
+      const others = students.filter((s) => s.gender !== "male" && s.gender !== "female");
+      const maleChunks = await planFor(males, "(ذكور) ");
+      const femaleChunks = await planFor(females, "(إناث) ");
+      const otherChunks = others.length ? await planFor(others, "(غير محدد) ") : [];
+      maleChunks.forEach((c, i) => allChunks.push({ name: `ذكور — مجموعة ${i + 1}`, members: c }));
+      femaleChunks.forEach((c, i) => allChunks.push({ name: `إناث — مجموعة ${i + 1}`, members: c }));
+      otherChunks.forEach((c, i) => allChunks.push({ name: `غير محدد — مجموعة ${i + 1}`, members: c }));
     } else {
-      for (let i = ordered.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
-      }
+      const chunks = await planFor(students, "");
+      chunks.forEach((c, i) => allChunks.push({ name: `مجموعة ${i + 1}`, members: c }));
     }
 
-    const groupCount = Math.ceil(ordered.length / size);
-    for (let i = 0; i < groupCount; i++) {
-      const slice = ordered.slice(i * size, (i + 1) * size);
+    for (const ch of allChunks) {
       const { data: g, error } = await supabase
         .from("assignment_groups")
-        .insert({
-          assignment_id: assignmentId,
-          name: `مجموعة ${i + 1}`,
-          max_size: size,
-        })
+        .insert({ assignment_id: assignmentId, name: ch.name, max_size: size })
         .select("id")
         .single();
       if (error) { toast.error(error.message); break; }
-      const rows = slice.map((s) => ({
+      const rows = ch.members.map((s) => ({
         group_id: (g as any).id,
         student_id: s.id,
         assignment_id: assignmentId!,
@@ -222,7 +264,7 @@ const AdminAssignmentGroups = () => {
       const { error: e2 } = await supabase.from("assignment_group_members").insert(rows);
       if (e2) { toast.error(e2.message); break; }
     }
-    toast.success("تم التقسيم");
+    toast.success(`تم إنشاء ${allChunks.length} مجموعة`);
     setBusy(false);
     load();
   };
@@ -268,7 +310,14 @@ const AdminAssignmentGroups = () => {
             </h1>
             <div className="flex items-center gap-2 flex-wrap mt-2 text-sm">
               <Badge variant="outline">طريقة التقسيم: {mode === "random" ? "عشوائي" : mode === "alphabetical" ? "أبجدي" : mode === "manual" ? "يدوي" : mode === "student_self" ? "اختيار الطلاب" : "بدون"}</Badge>
-              <Badge variant="outline">الجنس: {assignment.gender_filter === "male" ? "ذكور" : assignment.gender_filter === "female" ? "إناث" : "الجميع"}</Badge>
+              <Badge variant="outline">
+                الجنس: {
+                  assignment.gender_filter === "male" ? "ذكور فقط"
+                  : assignment.gender_filter === "female" ? "إناث فقط"
+                  : assignment.gender_split === "separated" ? "قائمة مفصولة"
+                  : "قائمة مدمجة"
+                }
+              </Badge>
               <Badge variant="outline">الحد الأقصى لكل مجموعة: {assignment.max_group_size ?? "—"}</Badge>
               {assignment.groups_locked && <Badge variant="destructive" className="gap-1"><Lock className="h-3 w-3" /> مقفل</Badge>}
             </div>

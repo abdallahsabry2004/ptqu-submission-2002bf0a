@@ -230,9 +230,9 @@ const StudentAssignmentDetail = () => {
                 </div>
               </div>
             ) : (
-              (!submission ||
-                submission.status === "rejected" ||
-                submission.status === "resubmit_requested") && (
+              // Allow upload/replace whenever the deadline window is open,
+              // or when the reviewer asked for a resubmit.
+              (!blocked || submission?.status === "rejected" || submission?.status === "resubmit_requested") && (
                 <div>
                   <input
                     ref={fileRef}
@@ -249,7 +249,9 @@ const StudentAssignmentDetail = () => {
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                     {submission ? "إعادة رفع التسليم" : "رفع ملف التسليم"}
                   </Button>
-                  <p className="text-xs text-center text-muted-foreground mt-2">حد أقصى 50 ميجا — أي نوع ملف</p>
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    حد أقصى 50 ميجا — يمكنك استبدال الملف في أي وقت قبل انتهاء الموعد.
+                  </p>
                 </div>
               )
             )}

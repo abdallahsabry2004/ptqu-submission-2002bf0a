@@ -38,6 +38,7 @@ interface Assignment {
   created_at: string;
   grouping_mode?: "none" | "random" | "alphabetical" | "manual" | "student_self";
   gender_filter?: "male" | "female" | "any";
+  gender_split?: "mixed" | "separated";
   max_group_size?: number | null;
   group_submission_mode?: "per_student" | "one_per_group";
 }
@@ -95,6 +96,7 @@ const AdminAssignments = () => {
   // grouping options
   const [groupingMode, setGroupingMode] = useState<"none" | "random" | "alphabetical" | "manual" | "student_self">("none");
   const [genderFilter, setGenderFilter] = useState<"any" | "male" | "female">("any");
+  const [genderSplit, setGenderSplit] = useState<"mixed" | "separated">("mixed");
   const [maxGroupSize, setMaxGroupSize] = useState<string>("");
   const [submissionMode, setSubmissionMode] = useState<"per_student" | "one_per_group">("per_student");
 
@@ -221,6 +223,7 @@ const AdminAssignments = () => {
       late_policy: latePol,
       grouping_mode: groupingMode,
       gender_filter: genderFilter,
+      gender_split: genderSplit,
       max_group_size: maxGroupSize ? Math.max(1, parseInt(maxGroupSize, 10)) : null,
       group_submission_mode: groupingMode !== "none" ? submissionMode : "per_student",
     });
@@ -232,6 +235,7 @@ const AdminAssignments = () => {
       setTitle(""); setDesc(""); setDue(""); setGroupId("");
       setSelectedStudents([]);
       setGroupingMode("none"); setGenderFilter("any"); setMaxGroupSize("");
+      setGenderSplit("mixed");
       setSubmissionMode("per_student");
       load();
     }
@@ -481,15 +485,32 @@ const AdminAssignments = () => {
                     </div>
                     {groupingMode !== "none" && (
                       <div className="space-y-2">
-                        <Label>تصفية حسب الجنس</Label>
-                        <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
+                        <Label>تنظيم الجنس داخل المجموعات</Label>
+                        <Select
+                          value={
+                            genderFilter === "male" ? "male_only"
+                            : genderFilter === "female" ? "female_only"
+                            : genderSplit === "separated" ? "separated"
+                            : "mixed"
+                          }
+                          onValueChange={(v: any) => {
+                            if (v === "male_only") { setGenderFilter("male"); setGenderSplit("mixed"); }
+                            else if (v === "female_only") { setGenderFilter("female"); setGenderSplit("mixed"); }
+                            else if (v === "separated") { setGenderFilter("any"); setGenderSplit("separated"); }
+                            else { setGenderFilter("any"); setGenderSplit("mixed"); }
+                          }}
+                        >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="any">قائمة مدمجة (ذكور وإناث)</SelectItem>
-                            <SelectItem value="male">ذكور فقط</SelectItem>
-                            <SelectItem value="female">إناث فقط</SelectItem>
+                            <SelectItem value="mixed">قائمة مدمجة (ولد وبنت في نفس المجموعة)</SelectItem>
+                            <SelectItem value="separated">قائمة مفصولة (مجموعات ذكور ومجموعات إناث)</SelectItem>
+                            <SelectItem value="male_only">ذكور فقط</SelectItem>
+                            <SelectItem value="female_only">إناث فقط</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          مفصولة: لن تحتوي أي مجموعة على الجنسين معًا، يتم تقسيم الذكور وحدهم والإناث وحدهن.
+                        </p>
                       </div>
                     )}
                   </div>

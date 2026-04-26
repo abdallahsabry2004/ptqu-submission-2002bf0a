@@ -96,6 +96,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           gender_filter: Database["public"]["Enums"]["gender_filter"]
+          gender_split: Database["public"]["Enums"]["gender_split"]
           group_id: string | null
           group_submission_mode: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode: Database["public"]["Enums"]["grouping_mode"]
@@ -114,6 +115,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           gender_filter?: Database["public"]["Enums"]["gender_filter"]
+          gender_split?: Database["public"]["Enums"]["gender_split"]
           group_id?: string | null
           group_submission_mode?: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
@@ -132,6 +134,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           gender_filter?: Database["public"]["Enums"]["gender_filter"]
+          gender_split?: Database["public"]["Enums"]["gender_split"]
           group_id?: string | null
           group_submission_mode?: Database["public"]["Enums"]["group_submission_mode"]
           grouping_mode?: Database["public"]["Enums"]["grouping_mode"]
@@ -514,6 +517,7 @@ export type Database = {
       app_role: "admin" | "student" | "supervisor"
       assignment_scope: "course" | "group"
       gender_filter: "male" | "female" | "any"
+      gender_split: "mixed" | "separated"
       group_submission_mode: "per_student" | "one_per_group"
       grouping_mode:
         | "none"
@@ -658,6 +662,7 @@ export const Constants = {
       app_role: ["admin", "student", "supervisor"],
       assignment_scope: ["course", "group"],
       gender_filter: ["male", "female", "any"],
+      gender_split: ["mixed", "separated"],
       group_submission_mode: ["per_student", "one_per_group"],
       grouping_mode: [
         "none",

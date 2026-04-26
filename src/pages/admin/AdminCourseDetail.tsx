@@ -102,8 +102,8 @@ const AdminCourseDetail = () => {
   }, [courseId]);
 
   const addStudent = async () => {
-    if (!/^\d{5,20}$/.test(nid.trim())) {
-      toast.error("الرقم القومي غير صالح");
+    if (!/^\d{14}$/.test(nid.trim())) {
+      toast.error("الرقم القومي يجب أن يكون 14 رقمًا بالضبط");
       return;
     }
     if (name.trim().length < 2) {
@@ -140,8 +140,8 @@ const AdminCourseDetail = () => {
       // Split by tab, comma, or multiple spaces
       const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
       if (parts.length < 2) continue;
-      // Detect which part is the national ID (numeric, 5+ digits)
-      const idIndex = parts.findIndex((p) => /^\d{5,20}$/.test(p));
+      // Detect which part is the national ID (exactly 14 digits — Egyptian)
+      const idIndex = parts.findIndex((p) => /^\d{14}$/.test(p));
       if (idIndex === -1) continue;
       const national_id = parts[idIndex];
       const full_name = parts.filter((_, i) => i !== idIndex).join(" ").trim();
@@ -223,10 +223,11 @@ const AdminCourseDetail = () => {
     const { data: g, error: gErr } = await supabase
       .from("groups")
       .insert({ course_id: courseId!, name: groupName.trim() })
-      .select()
+      .select("id, name")
       .single();
     if (gErr || !g) {
-      toast.error(gErr?.message ?? "خطأ");
+      console.error("createGroup error", gErr);
+      toast.error(gErr?.message ?? "تعذر إنشاء المجموعة");
       setCreatingGroup(false);
       return;
     }
@@ -234,14 +235,15 @@ const AdminCourseDetail = () => {
       .from("group_members")
       .insert(groupMembers.map((sid) => ({ group_id: g.id, student_id: sid })));
     if (mErr) {
-      toast.error(mErr.message);
+      console.error("group_members insert error", mErr);
+      toast.error(`المجموعة أُنشئت لكن تعذّرت إضافة الأعضاء: ${mErr.message}`);
     } else {
       toast.success("تم إنشاء المجموعة");
-      setGroupName("");
-      setGroupMembers([]);
-      setGroupOpen(false);
-      load();
     }
+    setGroupName("");
+    setGroupMembers([]);
+    setGroupOpen(false);
+    await load();
     setCreatingGroup(false);
   };
 

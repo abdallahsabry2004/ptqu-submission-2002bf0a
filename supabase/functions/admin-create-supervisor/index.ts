@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
     const full_name = String(body.full_name ?? "").trim();
     const course_ids: string[] = Array.isArray(body.course_ids) ? body.course_ids : [];
 
-    if (!/^\d{5,20}$/.test(national_id)) {
-      return new Response(JSON.stringify({ error: "الرقم القومي غير صالح" }), { headers: cors, status: 400 });
+    if (!/^\d{14}$/.test(national_id)) {
+      return new Response(JSON.stringify({ error: "الرقم القومي يجب أن يكون 14 رقمًا بالضبط" }), { headers: cors, status: 400 });
     }
     if (full_name.length < 2 || full_name.length > 120) {
       return new Response(JSON.stringify({ error: "الاسم غير صالح" }), { headers: cors, status: 400 });
