@@ -43,31 +43,13 @@ const AdminPasswords = () => {
 
   const load = async () => {
     setLoading(true);
-    // Only show students + supervisors (exclude admins from password listing)
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
-    const nonAdminIds = ((roles as any) ?? [])
-      .filter((r: any) => r.role !== "admin")
-      .map((r: any) => r.user_id);
-    const adminIds = new Set(((roles as any) ?? []).filter((r: any) => r.role === "admin").map((r: any) => r.user_id));
-    const targetIds = nonAdminIds.filter((id: string) => !adminIds.has(id));
-
-    let profs: Profile[] = [];
-    if (targetIds.length > 0) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, national_id, current_password")
-        .in("id", targetIds)
-        .order("full_name");
-      profs = (data as any) ?? [];
-    }
+    const { data: profs } = await supabase.rpc("admin_list_account_passwords");
     const { data: reqs } = await supabase
       .from("password_reset_requests")
       .select("id, user_id, national_id, message, status, created_at")
       .order("created_at", { ascending: false });
 
-    setProfiles(profs);
+    setProfiles(((profs as any) ?? []) as Profile[]);
     setRequests((reqs as any) ?? []);
     setLoading(false);
   };
