@@ -47,7 +47,7 @@ const AdminAssignmentGroups = () => {
     setLoading(true);
     const { data: a } = await supabase
       .from("assignments")
-      .select("id, title, course_id, grouping_mode, gender_filter, max_group_size, groups_locked")
+      .select("id, title, course_id, grouping_mode, gender_filter, gender_split, max_group_size, groups_locked")
       .eq("id", assignmentId)
       .single();
     setAssignment(a);
