@@ -255,7 +255,7 @@ const AdminCourseDetail = () => {
     if (error) toast.error(error.message);
     else {
       toast.success("تم الحذف");
-      load();
+      load(false);
     }
   };
 
