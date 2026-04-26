@@ -521,6 +521,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_account_passwords: {
+        Args: never
+        Returns: {
+          current_password: string
+          full_name: string
+          id: string
+          national_id: string
+          role: string
+        }[]
+      }
       assignment_group_full: { Args: { _group_id: string }; Returns: boolean }
       has_role: {
         Args: {
