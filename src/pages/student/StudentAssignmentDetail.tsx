@@ -106,6 +106,10 @@ const StudentAssignmentDetail = () => {
   const handleDelete = async () => {
     if (!submission) return;
     if (!confirm("حذف التسليم؟ سيُحذف الملف نهائيًا.")) return;
+    // Remove storage object first (RLS allows it for the owner / group member)
+    if (submission.file_path) {
+      await supabase.storage.from("submissions").remove([submission.file_path]);
+    }
     const { error } = await supabase.from("submissions").delete().eq("id", submission.id);
     if (error) toast.error(error.message);
     else {
