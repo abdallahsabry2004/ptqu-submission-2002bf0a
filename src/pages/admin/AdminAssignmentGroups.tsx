@@ -310,7 +310,14 @@ const AdminAssignmentGroups = () => {
             </h1>
             <div className="flex items-center gap-2 flex-wrap mt-2 text-sm">
               <Badge variant="outline">طريقة التقسيم: {mode === "random" ? "عشوائي" : mode === "alphabetical" ? "أبجدي" : mode === "manual" ? "يدوي" : mode === "student_self" ? "اختيار الطلاب" : "بدون"}</Badge>
-              <Badge variant="outline">الجنس: {assignment.gender_filter === "male" ? "ذكور" : assignment.gender_filter === "female" ? "إناث" : "الجميع"}</Badge>
+              <Badge variant="outline">
+                الجنس: {
+                  assignment.gender_filter === "male" ? "ذكور فقط"
+                  : assignment.gender_filter === "female" ? "إناث فقط"
+                  : assignment.gender_split === "separated" ? "قائمة مفصولة"
+                  : "قائمة مدمجة"
+                }
+              </Badge>
               <Badge variant="outline">الحد الأقصى لكل مجموعة: {assignment.max_group_size ?? "—"}</Badge>
               {assignment.groups_locked && <Badge variant="destructive" className="gap-1"><Lock className="h-3 w-3" /> مقفل</Badge>}
             </div>
