@@ -244,6 +244,18 @@ const AdminAssignments = () => {
 
   const removeAssignment = async (id: string) => {
     if (!confirm("حذف طلب التسليم وكل تسليماته؟")) return;
+    // First, collect file paths from this assignment's submissions and remove
+    // them from storage (DB cascade handles the rows but not the files).
+    const { data: subRows } = await supabase
+      .from("submissions")
+      .select("file_path")
+      .eq("assignment_id", id);
+    const paths = ((subRows as any) ?? [])
+      .map((s: any) => s.file_path)
+      .filter(Boolean);
+    if (paths.length > 0) {
+      await supabase.storage.from("submissions").remove(paths);
+    }
     const { error } = await supabase.from("assignments").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("تم الحذف"); load(); }
