@@ -102,8 +102,8 @@ const AdminCourseDetail = () => {
   }, [courseId]);
 
   const addStudent = async () => {
-    if (!/^\d{5,20}$/.test(nid.trim())) {
-      toast.error("الرقم القومي غير صالح");
+    if (!/^\d{14}$/.test(nid.trim())) {
+      toast.error("الرقم القومي يجب أن يكون 14 رقمًا بالضبط");
       return;
     }
     if (name.trim().length < 2) {
@@ -140,8 +140,8 @@ const AdminCourseDetail = () => {
       // Split by tab, comma, or multiple spaces
       const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
       if (parts.length < 2) continue;
-      // Detect which part is the national ID (numeric, 5+ digits)
-      const idIndex = parts.findIndex((p) => /^\d{5,20}$/.test(p));
+      // Detect which part is the national ID (exactly 14 digits — Egyptian)
+      const idIndex = parts.findIndex((p) => /^\d{14}$/.test(p));
       if (idIndex === -1) continue;
       const national_id = parts[idIndex];
       const full_name = parts.filter((_, i) => i !== idIndex).join(" ").trim();
