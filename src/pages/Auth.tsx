@@ -19,7 +19,7 @@ const Auth = () => {
   const [submitting, setSubmitting] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotNid, setForgotNid] = useState("");
-  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotMsg, setForgotMsg] = useState("");
   const [forgotBusy, setForgotBusy] = useState(false);
 
   if (!authLoading && user && role) {
@@ -72,29 +72,24 @@ const Auth = () => {
 
   const submitForgot = async () => {
     const nid = forgotNid.trim();
-    const email = forgotEmail.trim().toLowerCase();
     if (!/^\d{5,20}$/.test(nid)) {
       toast.error("الرقم القومي غير صالح");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error("بريد إلكتروني غير صالح");
       return;
     }
     setForgotBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("request-password-reset", {
-        body: { national_id: nid, email },
+        body: { national_id: nid, message: forgotMsg.trim() || undefined },
       });
       if (error) {
         toast.error("تعذر إرسال الطلب، حاول لاحقاً");
       } else if ((data as any)?.error) {
         toast.error((data as any).error);
       } else {
-        toast.success("إذا كانت البيانات صحيحة، تم إرسال رابط إعادة التعيين إلى بريدك");
+        toast.success("تم استلام طلبك. سيتواصل معك المسؤول قريبًا بكلمة المرور الجديدة.");
         setForgotOpen(false);
         setForgotNid("");
-        setForgotEmail("");
+        setForgotMsg("");
       }
     } catch {
       toast.error("حدث خطأ");
@@ -158,7 +153,7 @@ const Auth = () => {
                 <DialogHeader>
                   <DialogTitle>إعادة تعيين كلمة المرور</DialogTitle>
                   <DialogDescription>
-                    أدخل رقمك القومي والبريد الإلكتروني المرتبط بحسابك. سيُرسَل رابط إعادة التعيين إذا كانت البيانات صحيحة.
+                    أدخل رقمك القومي وسيصل طلبك إلى المسؤول الذي سيقوم بإعادة تعيين كلمة المرور وإبلاغك بها.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
@@ -174,20 +169,18 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>البريد الإلكتروني</Label>
+                    <Label>رسالة للمسؤول (اختياري)</Label>
                     <Input
-                      dir="ltr"
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="example@email.com"
+                      value={forgotMsg}
+                      onChange={(e) => setForgotMsg(e.target.value)}
+                      placeholder="مثال: نسيت كلمة المرور بعد التغيير الأخير"
                     />
                   </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={submitForgot} disabled={forgotBusy} className="gap-2">
                     {forgotBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                    إرسال رابط الاستعادة
+                    إرسال الطلب للمسؤول
                   </Button>
                 </DialogFooter>
               </DialogContent>

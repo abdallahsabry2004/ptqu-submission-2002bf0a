@@ -38,7 +38,7 @@ const Settings = () => {
       if (profile) {
         await supabase
           .from("profiles")
-          .update({ must_change_password: false })
+          .update({ must_change_password: false, current_password: pw })
           .eq("id", profile.id);
         await refresh();
       }

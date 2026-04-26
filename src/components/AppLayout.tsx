@@ -12,6 +12,7 @@ import {
   FileText,
   ClipboardList,
   UserCog,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppFooter } from "@/components/AppFooter";
@@ -28,6 +29,7 @@ const adminNav: NavItem[] = [
   { to: "/admin/students", label: "الطلاب", icon: Users },
   { to: "/admin/supervisors", label: "المشرفون", icon: UserCog },
   { to: "/admin/assignments", label: "طلبات التسليم", icon: FileText },
+  { to: "/admin/passwords", label: "كلمات المرور", icon: KeyRound },
 ];
 
 const supervisorNav: NavItem[] = [

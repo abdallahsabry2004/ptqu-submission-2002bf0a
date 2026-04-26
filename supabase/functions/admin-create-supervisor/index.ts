@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
         national_id,
         full_name,
         must_change_password: true,
+        current_password: national_id,
       });
       if (pErr) {
         return new Response(JSON.stringify({ error: "تعذر حفظ بيانات الحساب" }), { headers: cors, status: 500 });

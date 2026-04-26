@@ -364,9 +364,46 @@ export type Database = {
           },
         ]
       }
+      password_reset_requests: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          national_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          national_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          national_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
+          current_password: string | null
           email: string | null
           full_name: string
           id: string
@@ -376,6 +413,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_password?: string | null
           email?: string | null
           full_name: string
           id: string
@@ -385,6 +423,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_password?: string | null
           email?: string | null
           full_name?: string
           id?: string
@@ -482,6 +521,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_account_passwords: {
+        Args: never
+        Returns: {
+          current_password: string
+          full_name: string
+          id: string
+          national_id: string
+          role: string
+        }[]
+      }
       assignment_group_full: { Args: { _group_id: string }; Returns: boolean }
       has_role: {
         Args: {
