@@ -16,6 +16,7 @@ import AdminStudents from "./pages/admin/AdminStudents";
 import AdminAssignments from "./pages/admin/AdminAssignments";
 import AdminAssignmentGroups from "./pages/admin/AdminAssignmentGroups";
 import AdminSupervisors from "./pages/admin/AdminSupervisors";
+import AdminPasswords from "./pages/admin/AdminPasswords";
 import SupervisorDashboard from "./pages/supervisor/SupervisorDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentCourses from "./pages/student/StudentCourses";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/admin/supervisors" element={<ProtectedRoute requiredRole="admin"><AdminSupervisors /></ProtectedRoute>} />
             <Route path="/admin/assignments" element={<ProtectedRoute requiredRole="admin"><AdminAssignments /></ProtectedRoute>} />
             <Route path="/admin/assignments/:id/groups" element={<ProtectedRoute requiredRole="admin"><AdminAssignmentGroups /></ProtectedRoute>} />
+            <Route path="/admin/passwords" element={<ProtectedRoute requiredRole="admin"><AdminPasswords /></ProtectedRoute>} />
 
             {/* Supervisor */}
             <Route path="/supervisor" element={<ProtectedRoute requiredRole="supervisor"><SupervisorDashboard /></ProtectedRoute>} />
