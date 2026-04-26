@@ -485,15 +485,32 @@ const AdminAssignments = () => {
                     </div>
                     {groupingMode !== "none" && (
                       <div className="space-y-2">
-                        <Label>تصفية حسب الجنس</Label>
-                        <Select value={genderFilter} onValueChange={(v: any) => setGenderFilter(v)}>
+                        <Label>تنظيم الجنس داخل المجموعات</Label>
+                        <Select
+                          value={
+                            genderFilter === "male" ? "male_only"
+                            : genderFilter === "female" ? "female_only"
+                            : genderSplit === "separated" ? "separated"
+                            : "mixed"
+                          }
+                          onValueChange={(v: any) => {
+                            if (v === "male_only") { setGenderFilter("male"); setGenderSplit("mixed"); }
+                            else if (v === "female_only") { setGenderFilter("female"); setGenderSplit("mixed"); }
+                            else if (v === "separated") { setGenderFilter("any"); setGenderSplit("separated"); }
+                            else { setGenderFilter("any"); setGenderSplit("mixed"); }
+                          }}
+                        >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="any">قائمة مدمجة (ذكور وإناث)</SelectItem>
-                            <SelectItem value="male">ذكور فقط</SelectItem>
-                            <SelectItem value="female">إناث فقط</SelectItem>
+                            <SelectItem value="mixed">قائمة مدمجة (ولد وبنت في نفس المجموعة)</SelectItem>
+                            <SelectItem value="separated">قائمة مفصولة (مجموعات ذكور ومجموعات إناث)</SelectItem>
+                            <SelectItem value="male_only">ذكور فقط</SelectItem>
+                            <SelectItem value="female_only">إناث فقط</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          مفصولة: لن تحتوي أي مجموعة على الجنسين معًا، يتم تقسيم الذكور وحدهم والإناث وحدهن.
+                        </p>
                       </div>
                     )}
                   </div>
