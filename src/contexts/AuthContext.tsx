@@ -9,6 +9,7 @@ export interface ProfileRow {
   national_id: string;
   full_name: string;
   email: string | null;
+  whatsapp_number: string | null;
   must_change_password: boolean;
 }
 
