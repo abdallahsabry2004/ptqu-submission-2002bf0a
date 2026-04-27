@@ -410,6 +410,7 @@ export type Database = {
           must_change_password: boolean
           national_id: string
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           created_at?: string
@@ -420,6 +421,7 @@ export type Database = {
           must_change_password?: boolean
           national_id: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           created_at?: string
@@ -430,6 +432,7 @@ export type Database = {
           must_change_password?: boolean
           national_id?: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
@@ -529,6 +532,7 @@ export type Database = {
           id: string
           national_id: string
           role: string
+          whatsapp_number: string
         }[]
       }
       assignment_group_full: { Args: { _group_id: string }; Returns: boolean }
@@ -541,6 +545,14 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_supervisor: { Args: { _user_id: string }; Returns: boolean }
+      list_course_groups: {
+        Args: { _course_id: string }
+        Returns: {
+          group_id: string
+          group_name: string
+          student_id: string
+        }[]
+      }
       student_can_see_assignment: {
         Args: { _assignment_id: string; _user: string }
         Returns: boolean

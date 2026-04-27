@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,8 +23,6 @@ interface StudentRow {
 }
 
 const AdminStudents = () => {
-  const { role, user } = useAuth();
-  const isSupervisor = role === "supervisor";
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -36,32 +33,11 @@ const AdminStudents = () => {
 
   const load = async () => {
     setLoading(true);
-    let ids: string[] = [];
-
-    if (isSupervisor && user) {
-      // Supervisor: only sees students enrolled in their courses
-      const { data: links } = await supabase
-        .from("course_supervisors")
-        .select("course_id")
-        .eq("supervisor_id", user.id);
-      const courseIds = (links ?? []).map((l: any) => l.course_id);
-      if (courseIds.length === 0) {
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
-      const { data: enr } = await supabase
-        .from("course_students")
-        .select("student_id")
-        .in("course_id", courseIds);
-      ids = Array.from(new Set(((enr as any) ?? []).map((r: any) => r.student_id)));
-    } else {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "student");
-      ids = (roles ?? []).map((r: any) => r.user_id);
-    }
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "student");
+    const ids = (roles ?? []).map((r: any) => r.user_id);
 
     if (ids.length === 0) {
       setStudents([]);
@@ -79,8 +55,7 @@ const AdminStudents = () => {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupervisor, user?.id]);
+  }, []);
 
   const filtered = students.filter(
     (s) =>
@@ -125,43 +100,14 @@ const AdminStudents = () => {
     }
   };
 
-  // Supervisor: remove student from all of supervisor's own courses
-  const removeFromMyCourses = async (studentId: string) => {
-    if (!user) return;
-    if (!confirm("إزالة الطالب من جميع مقرراتك؟ (لن يُحذف حسابه من المنصة)")) return;
-    const { data: links } = await supabase
-      .from("course_supervisors")
-      .select("course_id")
-      .eq("supervisor_id", user.id);
-    const courseIds = ((links as any) ?? []).map((l: any) => l.course_id);
-    if (courseIds.length === 0) {
-      toast.error("لا توجد مقررات تابعة لك");
-      return;
-    }
-    const { error } = await supabase
-      .from("course_students")
-      .delete()
-      .in("course_id", courseIds)
-      .eq("student_id", studentId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("تمت الإزالة من مقرراتك");
-      load();
-    }
-  };
-
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">
-            {isSupervisor ? "طلاب مقرراتي" : "جميع الطلاب"}
+            جميع الطلاب
           </h1>
-          <p className="text-muted-foreground">
-            {isSupervisor
-              ? "عرض كل الطلاب المسجلين في مقرراتك (الرقم القومي = المعرف الوحيد)"
-              : "عرض وتعديل وحذف الطلاب المسجلين"}
-          </p>
+          <p className="text-muted-foreground">عرض وتعديل وحذف الطلاب المسجلين</p>
         </div>
 
         <div className="relative max-w-md">
@@ -201,14 +147,7 @@ const AdminStudents = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {!isSupervisor && (
-                        <>
-                          <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startEdit(s)}
-                        aria-label="تعديل"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => startEdit(s)} aria-label="تعديل">
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
@@ -220,20 +159,6 @@ const AdminStudents = () => {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                        </>
-                      )}
-                      {isSupervisor && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => removeFromMyCourses(s.id)}
-                          aria-label="إزالة من مقرراتي"
-                          title="إزالة من مقرراتي"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
                   </li>
                 ))}
