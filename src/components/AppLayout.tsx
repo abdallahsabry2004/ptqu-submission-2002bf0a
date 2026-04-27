@@ -35,7 +35,6 @@ const adminNav: NavItem[] = [
 const supervisorNav: NavItem[] = [
   { to: "/supervisor", label: "اللوحة", icon: LayoutDashboard },
   { to: "/supervisor/courses", label: "مقرراتي", icon: BookOpen },
-  { to: "/supervisor/students", label: "الطلاب", icon: Users },
   { to: "/supervisor/assignments", label: "طلبات التسليم", icon: FileText },
 ];
 
