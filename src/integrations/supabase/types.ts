@@ -532,6 +532,7 @@ export type Database = {
           id: string
           national_id: string
           role: string
+          whatsapp_number: string
         }[]
       }
       assignment_group_full: { Args: { _group_id: string }; Returns: boolean }
