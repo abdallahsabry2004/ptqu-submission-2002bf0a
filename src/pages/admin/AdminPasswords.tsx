@@ -18,6 +18,8 @@ interface Profile {
   full_name: string;
   national_id: string;
   current_password: string | null;
+  whatsapp_number: string | null;
+  role: string;
 }
 interface ResetReq {
   id: string;
@@ -57,7 +59,10 @@ const AdminPasswords = () => {
   useEffect(() => { load(); }, []);
 
   const filtered = profiles.filter(
-    (p) => p.full_name.toLowerCase().includes(q.toLowerCase()) || p.national_id.includes(q),
+    (p) =>
+      p.full_name.toLowerCase().includes(q.toLowerCase()) ||
+      p.national_id.includes(q) ||
+      (p.whatsapp_number ?? "").includes(q),
   );
   const pendingRequests = requests.filter((r) => r.status === "pending");
 
@@ -225,14 +230,23 @@ const AdminPasswords = () => {
                 <CardContent className="p-0">
                   <ul className="divide-y divide-border">
                     {filtered.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 flex-wrap">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">{p.full_name}</p>
-                          <p className="text-xs font-mono text-muted-foreground" dir="ltr">{p.national_id}</p>
+                      <li key={p.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold leading-6 break-words">{p.full_name}</p>
+                            <Badge variant={p.role === "supervisor" ? "default" : "secondary"}>
+                              {p.role === "supervisor" ? "مشرف" : "طالب"}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="font-mono" dir="ltr">{p.national_id}</span>
+                            <span dir="ltr">{p.whatsapp_number || "لا يوجد واتساب"}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                          <span className="text-xs text-muted-foreground">كلمة المرور</span>
                           <code
-                            className="rounded bg-muted px-2 py-1 text-xs font-mono select-all"
+                            className="max-w-full rounded bg-muted px-2 py-1 text-xs font-mono select-all break-all"
                             dir="ltr"
                           >
                             {show[p.id] ? (p.current_password ?? "—") : "••••••••"}
