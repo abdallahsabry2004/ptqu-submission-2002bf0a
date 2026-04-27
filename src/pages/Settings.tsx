@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
-import { KeyRound, Mail, Loader2, IdCard } from "lucide-react";
+import { KeyRound, Loader2, IdCard, Phone } from "lucide-react";
 
 const Settings = () => {
   const { profile, refresh } = useAuth();
@@ -16,8 +16,8 @@ const Settings = () => {
   const [pw2, setPw2] = useState("");
   const [savingPw, setSavingPw] = useState(false);
 
-  const [email, setEmail] = useState(profile?.email ?? "");
-  const [savingEmail, setSavingEmail] = useState(false);
+  const [whatsapp, setWhatsapp] = useState(profile?.whatsapp_number ?? "");
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const mustChangePassword = profile?.must_change_password;
 
   const changePassword = async () => {
@@ -49,26 +49,26 @@ const Settings = () => {
     setSavingPw(false);
   };
 
-  const linkEmail = async () => {
-    const e = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-      toast.error("بريد إلكتروني غير صالح");
+  const saveWhatsapp = async () => {
+    const phone = whatsapp.trim().replace(/[\s-]/g, "");
+    if (phone && !/^\+?\d{10,15}$/.test(phone)) {
+      toast.error("رقم واتساب غير صالح");
       return;
     }
-    setSavingEmail(true);
+    setSavingWhatsapp(true);
     if (profile) {
       const { error } = await supabase
         .from("profiles")
-        .update({ email: e })
+        .update({ whatsapp_number: phone || null } as any)
         .eq("id", profile.id);
       if (error) {
         toast.error(error.message);
       } else {
         await refresh();
-        toast.success("تم حفظ البريد الإلكتروني");
+        toast.success("تم حفظ رقم واتساب");
       }
     }
-    setSavingEmail(false);
+    setSavingWhatsapp(false);
   };
 
   return (
@@ -76,7 +76,7 @@ const Settings = () => {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">الإعدادات</h1>
-          <p className="text-muted-foreground">إدارة حسابك وكلمة المرور والبريد الإلكتروني</p>
+          <p className="text-muted-foreground">إدارة حسابك وكلمة المرور ورقم واتساب</p>
         </div>
 
         <Card>
@@ -134,27 +134,27 @@ const Settings = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" /> البريد الإلكتروني
+              <Phone className="h-5 w-5 text-primary" /> رقم واتساب
             </CardTitle>
             <CardDescription>
-              اربط بريدك الإلكتروني بحسابك (اختياري — لاستعادة كلمة المرور لاحقًا)
+              أضف رقم واتساب حتى يستطيع المسؤول التواصل معك عند الحاجة
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Label htmlFor="whatsapp">رقم واتساب</Label>
               <Input
-                id="email"
-                type="email"
+                id="whatsapp"
+                type="tel"
                 dir="ltr"
-                placeholder="example@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="+201001234567"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
               />
             </div>
-            <Button onClick={linkEmail} disabled={savingEmail} className="gap-2">
-              {savingEmail && <Loader2 className="h-4 w-4 animate-spin" />}
-              حفظ البريد
+            <Button onClick={saveWhatsapp} disabled={savingWhatsapp} className="gap-2">
+              {savingWhatsapp && <Loader2 className="h-4 w-4 animate-spin" />}
+              حفظ رقم واتساب
             </Button>
           </CardContent>
         </Card>
