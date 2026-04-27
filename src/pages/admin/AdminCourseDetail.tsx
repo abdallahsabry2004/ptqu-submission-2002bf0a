@@ -62,17 +62,13 @@ const AdminCourseDetail = () => {
   const load = async (showSpinner = true) => {
     if (!courseId) return;
     if (showSpinner) setLoading(true);
-    const [{ data: c }, { data: cs }, { data: gs }] = await Promise.all([
+    const [{ data: c }, { data: cs }, { data: groupRows, error: groupErr }] = await Promise.all([
       supabase.from("courses").select("name").eq("id", courseId).single(),
       supabase
         .from("course_students")
         .select("student_id")
         .eq("course_id", courseId),
-      supabase
-        .from("groups")
-        .select("id, name, group_members(student_id)")
-        .eq("course_id", courseId)
-        .order("created_at"),
+      supabase.rpc("list_course_groups" as any, { _course_id: courseId } as any),
     ]);
     setCourseName((c as any)?.name ?? "");
 
@@ -88,13 +84,20 @@ const AdminCourseDetail = () => {
     }
     setStudents(studentRows);
 
-    setGroups(
-      ((gs as any) ?? []).map((g: any) => ({
-        id: g.id,
-        name: g.name,
-        member_ids: (g.group_members ?? []).map((m: any) => m.student_id),
-      }))
-    );
+    if (groupErr) {
+      console.error("load groups error", groupErr);
+      toast.error("تعذر تحميل المجموعات");
+      setGroups([]);
+    } else {
+      const byGroup = new Map<string, Group>();
+      ((groupRows as any) ?? []).forEach((row: any) => {
+        if (!byGroup.has(row.group_id)) {
+          byGroup.set(row.group_id, { id: row.group_id, name: row.group_name, member_ids: [] });
+        }
+        if (row.student_id) byGroup.get(row.group_id)!.member_ids.push(row.student_id);
+      });
+      setGroups(Array.from(byGroup.values()));
+    }
     setLoading(false);
   };
 
@@ -413,15 +416,17 @@ const AdminCourseDetail = () => {
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => removeStudent(s.id)}
-                              aria-label="إزالة من المقرر"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!isSupervisor && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => removeStudent(s.id)}
+                                aria-label="إزالة من المقرر"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </li>
                       ))}
