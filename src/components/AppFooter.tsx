@@ -21,7 +21,6 @@ export function AppFooter() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-success text-success-foreground hover:opacity-90 transition-smooth shadow-soft text-sm font-semibold"
           >
             <MessageCircle className="h-4 w-4" />
-            <span dir="ltr">01113515751</span>
             <span>واتساب</span>
           </a>
           <a
