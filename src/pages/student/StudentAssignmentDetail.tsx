@@ -105,7 +105,7 @@ const StudentAssignmentDetail = () => {
     const safe = file.name.replace(/[^\w.\-آ-ي]/g, "_");
     const path = `${user.id}/${assignment.id}/${Date.now()}_${safe}`;
 
-    // Remove old file if replacing
+    // حذف الملف القديم من مساحة التخزين إن وجد
     if (mySubmission?.file_path) {
       await supabase.storage.from("submissions").remove([mySubmission.file_path]).catch(() => {});
     }
@@ -121,42 +121,37 @@ const StudentAssignmentDetail = () => {
     }
 
     let dbErr;
+    
+    // === التعديل الجذري هنا ===
     if (mySubmission) {
-      // 1. في حالة التحديث: إرسال الحقول المسموح بتعديلها فقط
-      const updatePayload = {
-        file_path: path,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type || "application/octet-stream",
-        submitted_at: new Date().toISOString(),
-      };
-      const { error } = await supabase.from("submissions").update(updatePayload).eq("id", mySubmission.id);
-      dbErr = error;
-    } else {
-      // 2. في حالة الإدخال الجديد: إرسال كل الحقول الأساسية
-      const insertPayload = {
-        assignment_id: assignment.id,
-        student_id: (isOnePerGroup && mySubmission) ? mySubmission.student_id : user.id,
-        group_id: myGroup?.id || null,
-        file_path: path,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type || "application/octet-stream",
-        status: "pending" as const,
-        is_late: !!isOverdue,
-        reviewer_notes: null,
-        reviewed_at: null,
-        submitted_at: new Date().toISOString(),
-      };
-      const { error } = await supabase.from("submissions").insert(insertPayload);
-      dbErr = error;
+      // بدلاً من التحديث (الذي تمنعه قاعدة البيانات)، نقوم بحذف السجل القديم
+      await supabase.from("submissions").delete().eq("id", mySubmission.id);
     }
+
+    // إدخال السجل الجديد بالكامل لتعود الحالة إلى "قيد المراجعة" ويختفي التقييم السابق
+    const insertPayload = {
+      assignment_id: assignment.id,
+      student_id: (isOnePerGroup && mySubmission) ? mySubmission.student_id : user.id,
+      group_id: myGroup?.id || null,
+      file_path: path,
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type || "application/octet-stream",
+      status: "pending" as const,
+      is_late: !!isOverdue,
+      reviewer_notes: null,
+      reviewed_at: null,
+      submitted_at: new Date().toISOString(),
+    };
+    
+    const { error } = await supabase.from("submissions").insert(insertPayload);
+    dbErr = error;
 
     if (dbErr) {
       await supabase.storage.from("submissions").remove([path]);
       toast.error(dbErr.message);
     } else {
-      toast.success("تم رفع التسليم بنجاح");
+      toast.success("تم رفع التسليم بنجاح وهو الآن قيد المراجعة");
       load();
     }
     setUploading(false);
