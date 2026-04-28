@@ -233,7 +233,7 @@ const StudentAssignmentGroups = () => {
   const sentIds = new Set(sentInvites.map((i) => i.invitee_id));
   const candidates = classmates.filter(
     (c) => c.id !== user?.id && !inGroupIds.has(c.id) && !sentIds.has(c.id) &&
-      (inviteSearch ? (c.full_name.includes(inviteSearch) || c.national_id.includes(inviteSearch)) : true)
+      (inviteSearch ? c.full_name.includes(inviteSearch) : true) // قمنا بإزالة البحث بالرقم القومي من هنا
   );
 
   return (
@@ -320,14 +320,15 @@ const StudentAssignmentGroups = () => {
                   <DialogContent>
                     <DialogHeader><DialogTitle>دعوة طالب</DialogTitle></DialogHeader>
                     <div className="space-y-2">
-                      <Input placeholder="بحث بالاسم أو الرقم القومي" value={inviteSearch} onChange={(e) => setInviteSearch(e.target.value)} />
+                      {/* قمنا بتعديل placeholder لإزالة عبارة "أو الرقم القومي" */}
+                      <Input placeholder="بحث بالاسم" value={inviteSearch} onChange={(e) => setInviteSearch(e.target.value)} />
                       <div className="max-h-64 overflow-auto border rounded-lg divide-y">
                         {candidates.length === 0 && <p className="p-3 text-sm text-muted-foreground text-center">لا يوجد طلاب مؤهلون</p>}
                         {candidates.map((c) => (
                           <div key={c.id} className="flex items-center justify-between p-2 gap-2">
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{c.full_name}</p>
-                              <p className="text-xs text-muted-foreground" dir="ltr">{c.national_id}</p>
+                              {/* قمنا بإزالة عرض الرقم القومي من هنا */}
                             </div>
                             <Button size="sm" variant="outline" className="gap-1" disabled={busy} onClick={() => sendInvite(c.id)}>
                               <UserPlus className="h-3.5 w-3.5" /> دعوة
@@ -404,7 +405,7 @@ const StudentAssignmentGroups = () => {
                         <li key={m.id} className="flex items-center justify-between gap-2 p-2 text-sm">
                           <div className="min-w-0">
                             <p className="truncate font-medium">{m.full_name}</p>
-                            <p className="text-xs text-muted-foreground" dir="ltr">{m.national_id}</p>
+                            {/* قمنا بإزالة عرض الرقم القومي من هنا */}
                           </div>
                           <span className="text-xs text-muted-foreground">{genderLabel[m.gender ?? "unknown"]}</span>
                         </li>
