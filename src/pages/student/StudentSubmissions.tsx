@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Loader2, Download } from "lucide-react";
+import { ClipboardList, Loader2, Download, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -24,11 +24,21 @@ const StudentSubmissions = () => {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("submissions")
-        .select("*, assignments(title, course_id, courses(id, name))")
-        .eq("student_id", user.id)
-        .order("submitted_at", { ascending: false });
+      // 1. Fetch user's groups
+      const { data: myGroups } = await supabase.from("assignment_group_members").select("group_id").eq("student_id", user.id);
+      const groupIds = (myGroups || []).map(g => g.group_id);
+
+      // 2. Fetch submissions: Mine OR belong to my groups
+      let query = supabase.from("submissions").select("*, assignments(title, course_id, courses(id, name))").order("submitted_at", { ascending: false });
+      
+      if (groupIds.length > 0) {
+        query = query.or(`student_id.eq.${user.id},group_id.in.(${groupIds.join(",")})`);
+      } else {
+        query = query.eq("student_id", user.id);
+      }
+
+      const { data } = await query;
+      
       const g: Record<string, any[]> = {};
       (data ?? []).forEach((s: any) => {
         const cName = s.assignments?.courses?.name ?? "غير محدد";
@@ -44,9 +54,7 @@ const StudentSubmissions = () => {
     const { data } = await supabase.storage.from("submissions").createSignedUrl(s.file_path, 600);
     if (data) {
       const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.download = s.file_name;
-      a.click();
+      a.href = data.signedUrl; a.download = s.file_name; a.click();
     } else toast.error("تعذر التحميل");
   };
 
@@ -55,7 +63,7 @@ const StudentSubmissions = () => {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">سجل التسليمات</h1>
-          <p className="text-muted-foreground">جميع تسليماتك مصنفة حسب المادة</p>
+          <p className="text-muted-foreground">جميع تسليماتك الفردية والجماعية مصنفة حسب المقرر</p>
         </div>
 
         {loading ? (
@@ -86,7 +94,7 @@ const StudentSubmissions = () => {
                                 {s.assignments?.title}
                               </Link>
                               <Badge variant={sl.variant}>{sl.label}</Badge>
-                              {s.is_late && <Badge variant="destructive" className="text-xs">متأخر</Badge>}
+                              {s.group_id && <Badge variant="secondary" className="gap-1"><Users2 className="h-3 w-3"/> تسليم جماعي</Badge>}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
                               📎 {s.file_name} · {new Date(s.submitted_at).toLocaleString("ar-EG")}
