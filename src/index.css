@@ -135,3 +135,13 @@
     transition: var(--transition-smooth);
   }
 }
+
+/* إخفاء شعار Lovable نهائياً من الواجهة */
+[id*="lovable"], 
+[class*="lovable"],
+iframe[src*="lovable"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
