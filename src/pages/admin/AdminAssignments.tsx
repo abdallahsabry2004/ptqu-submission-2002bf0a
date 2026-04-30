@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Loader2, FileText, Download, Check, X, RefreshCw, Trash2, ChevronDown, ChevronUp, FolderArchive, Users2, FileBarChart } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
@@ -72,7 +73,7 @@ const AdminAssignments = () => {
   const [maxGroupSize, setMaxGroupSize] = useState<string>("");
   const [submissionMode, setSubmissionMode] = useState<"per_student" | "one_per_group">("per_student");
 
-    const load = async () => {
+  const load = async () => {
     setLoading(true);
     let allowedCourseIds: string[] | null = null;
     if (isSupervisor && currentUser) {
@@ -88,8 +89,6 @@ const AdminAssignments = () => {
     const groupQ = supabase.from("groups").select("id, name, course_id");
     const assignQ = supabase.from("assignments").select("*").order("created_at", { ascending: false });
     const subQ = supabase.from("submissions").select("*, profiles(full_name, national_id)").order("submitted_at", { ascending: false });
-    
-    // جلب الطلاب المسجلين (بدون دمج مباشر لتجنب أخطاء الربط)
     const enrQ = supabase.from("course_students").select("course_id, student_id");
 
     if (allowedCourseIds) {
@@ -98,7 +97,6 @@ const AdminAssignments = () => {
 
     const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }, { data: enrData }] = await Promise.all([courseQ, groupQ, assignQ, subQ, enrQ]);
 
-    // الطريقة المضمونة: تجميع أرقام الطلاب ثم جلب بياناتهم
     const studentIds = Array.from(new Set([
       ...((subs as any) ?? []).map((s: any) => s.student_id),
       ...((enrData as any) ?? []).map((e: any) => e.student_id),
@@ -113,7 +111,7 @@ const AdminAssignments = () => {
     const enrMap = new Map<string, Profile[]>();
     ((enrData as any) ?? []).forEach((row: any) => {
       const p = profileMap.get(row.student_id);
-      if (!p) return; // الآن لن يتم تجاهل أحد لأن البيانات موجودة
+      if (!p) return;
       const list = enrMap.get(row.course_id) ?? [];
       list.push(p);
       enrMap.set(row.course_id, list);
@@ -221,7 +219,6 @@ const AdminAssignments = () => {
     const subsByStudent = new Map<string, Submission>();
     submissions.filter((s) => s.assignment_id === a.id).forEach((s) => { subsByStudent.set(s.student_id, s); });
     
-    // جلب بيانات المجموعات لإضافتها للتقرير إذا كان التكليف بنظام المجموعات
     let groupMap = new Map<string, string>();
     if (a.grouping_mode !== "none") {
       const { data: gData } = await supabase.from("assignment_groups").select("id, name").eq("assignment_id", a.id);
@@ -286,6 +283,7 @@ const AdminAssignments = () => {
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>إنشاء طلب تسليم</DialogTitle></DialogHeader>
+              {/* نفس فورم الإنشاء دون تغيير ... */}
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
                   <Label>المقرر *</Label>
@@ -493,48 +491,189 @@ const AdminAssignments = () => {
   );
 };
 
+// ==========================================
+// RosterView - المكون المطور لعرض الـ 3 خانات
+// ==========================================
 function RosterView({ assignment, submissions, getTargets, onUpdate, onDownload }: any) {
   const [targets, setTargets] = useState<Profile[]>([]);
+  const [aGroups, setAGroups] = useState<any[]>([]);
+  const [aMembers, setAMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  useEffect(() => { setLoading(true); getTargets().then((t: any) => { setTargets(t); setLoading(false); }); }, [assignment.id]);
+  useEffect(() => {
+    setLoading(true);
+    getTargets().then(async (t: Profile[]) => {
+      setTargets(t);
+      if (assignment.grouping_mode !== "none") {
+        const [{ data: grps }, { data: mems }] = await Promise.all([
+          supabase.from("assignment_groups").select("*").eq("assignment_id", assignment.id),
+          supabase.from("assignment_group_members").select("*").eq("assignment_id", assignment.id)
+        ]);
+        setAGroups(grps || []);
+        setAMembers(mems || []);
+      }
+      setLoading(false);
+    });
+  }, [assignment.id]);
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   if (targets.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">لا يوجد طلاب مستهدفون</p>;
 
   const subByStudent = new Map<string, Submission>();
-  submissions.forEach((s: any) => subByStudent.set(s.student_id, s));
+  submissions.forEach((s: Submission) => subByStudent.set(s.student_id, s));
+
+  const isGroupMode = assignment.grouping_mode !== "none";
+  const isOnePerGroup = isGroupMode && assignment.group_submission_mode === "one_per_group";
+
+  // دالة لتصنيف حالة التسليم لمطابقتها مع التابات
+  const getCategory = (sub?: Submission) => {
+    if (!sub) return "missing";
+    if (sub.status === "pending") return "pending";
+    if (sub.status === "approved") return "approved";
+    return "missing"; // Rejected or Resubmit Requested
+  };
+
+  let pendingCount = 0; let missingCount = 0; let approvedCount = 0;
+  const groupedStudentIds = new Set(aMembers.map(m => m.student_id));
+  const ungroupedStudents = targets.filter(t => !groupedStudentIds.has(t.id));
+
+  // حساب الأعداد بناءً على طريقة التسليم
+  if (isGroupMode && isOnePerGroup) {
+    aGroups.forEach(g => {
+       const sub = submissions.find((s: Submission) => s.group_id === g.id);
+       const cat = getCategory(sub);
+       if (cat === 'pending') pendingCount++; else if (cat === 'approved') approvedCount++; else missingCount++;
+    });
+    ungroupedStudents.forEach(u => {
+       const sub = subByStudent.get(u.id);
+       const cat = getCategory(sub);
+       if (cat === 'pending') pendingCount++; else if (cat === 'approved') approvedCount++; else missingCount++;
+    });
+  } else {
+    targets.forEach(t => {
+       const sub = subByStudent.get(t.id);
+       const cat = getCategory(sub);
+       if (cat === 'pending') pendingCount++; else if (cat === 'approved') approvedCount++; else missingCount++;
+    });
+  }
+
+  // تصميم صف الطالب الواحد
+  const renderStudentRow = (p: Profile, s?: Submission) => {
+    const sl = s ? statusLabels[s.status as keyof typeof statusLabels] : { label: "لم يُسلَّم", variant: "outline" as const };
+    return (
+      <div key={p.id} className="flex items-center justify-between p-3 border-b last:border-0 hover:bg-muted/30 transition-colors">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-sm">{p.full_name}</p>
+            <span className="text-xs font-mono text-muted-foreground" dir="ltr">{p.national_id}</span>
+            <Badge variant={sl.variant as any}>{sl.label}</Badge>
+            {s?.is_late && <Badge variant="destructive" className="text-xs">متأخر</Badge>}
+          </div>
+          {s ? (
+            <p className="text-xs text-muted-foreground mt-1">📎 {s.file_name} · {new Date(s.submitted_at).toLocaleString("ar-EG")}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">لم يقم الطالب برفع ملف بعد</p>
+          )}
+        </div>
+        {s && (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" title="تحميل" onClick={() => onDownload(s)}><Download className="h-4 w-4" /></Button>
+            {s.status !== "approved" && <Button variant="ghost" size="icon" title="قبول" className="text-success hover:bg-success/10" onClick={() => onUpdate(s.id, "approved")}><Check className="h-4 w-4" /></Button>}
+            {s.status !== "rejected" && <Button variant="ghost" size="icon" title="رفض" className="text-destructive hover:bg-destructive/10" onClick={() => { const note = prompt("سبب الرفض:"); if(note !== null) onUpdate(s.id, "rejected", note); }}><X className="h-4 w-4" /></Button>}
+            <Button variant="ghost" size="icon" title="طلب إعادة تسليم" className="text-warning hover:bg-warning/10" onClick={() => { const note = prompt("ملاحظات:"); if(note !== null) onUpdate(s.id, "resubmit_requested", note); }}><RefreshCw className="h-4 w-4" /></Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // دالة عرض محتوى كل تابة
+  const renderContent = (tabCat: string) => {
+    // حالة التسليم الفردي التام (لا توجد مجموعات أصلاً)
+    if (!isGroupMode) {
+       const list = targets.filter(t => getCategory(subByStudent.get(t.id)) === tabCat);
+       if (list.length === 0) return <p className="text-center text-muted-foreground py-8 text-sm">لا توجد بيانات في هذه القائمة</p>;
+       return <div className="border rounded-lg bg-card">{list.map(t => renderStudentRow(t, subByStudent.get(t.id)))}</div>;
+    }
+
+    // حالة وجود مجموعات (سواء تسليم جماعي أو فردي داخل المجموعة)
+    const renderedGroups = aGroups.map(group => {
+       if (isOnePerGroup) {
+          const groupSub = submissions.find((s: Submission) => s.group_id === group.id);
+          if (getCategory(groupSub) !== tabCat) return null;
+          
+          const memberIds = aMembers.filter(m => m.group_id === group.id).map(m => m.student_id);
+          const members = targets.filter(t => memberIds.includes(t.id));
+
+          return (
+             <div key={group.id} className="border rounded-lg overflow-hidden mb-4 bg-card">
+                <div className="bg-primary/5 px-4 py-3 flex justify-between items-center flex-wrap gap-3 border-b">
+                   <div className="font-semibold text-primary">{group.name} <span className="text-xs text-muted-foreground">({members.length} طلاب)</span></div>
+                   {groupSub ? (
+                     <div className="flex items-center gap-2">
+                       <Badge variant={statusLabels[groupSub.status as keyof typeof statusLabels].variant}>{statusLabels[groupSub.status as keyof typeof statusLabels].label}</Badge>
+                       <Button variant="outline" size="sm" onClick={() => onDownload(groupSub)}><Download className="h-4 w-4 ml-1"/> تحميل</Button>
+                       {groupSub.status !== "approved" && <Button variant="ghost" size="sm" className="text-success hover:bg-success/10" onClick={() => onUpdate(groupSub.id, "approved")}><Check className="h-4 w-4 ml-1" /> قبول</Button>}
+                       {groupSub.status !== "rejected" && <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => { const note = prompt("السبب:"); if(note !== null) onUpdate(groupSub.id, "rejected", note); }}><X className="h-4 w-4 ml-1" /> رفض</Button>}
+                     </div>
+                   ) : <Badge variant="outline">لم يتم التسليم</Badge>}
+                </div>
+                <div className="px-4 py-3 text-sm text-muted-foreground leading-relaxed">
+                   {members.map(m => m.full_name).join(" ، ")}
+                </div>
+             </div>
+          );
+       } else {
+          // حالة التسليم الفردي (كل طالب ملف خاص) ولكن داخل مجموعته!
+          const memberIds = aMembers.filter(m => m.group_id === group.id).map(m => m.student_id);
+          const members = targets.filter(t => memberIds.includes(t.id) && getCategory(subByStudent.get(t.id)) === tabCat);
+          if (members.length === 0) return null;
+
+          return (
+             <div key={group.id} className="border rounded-lg overflow-hidden mb-4 bg-card shadow-sm">
+                <div className="bg-muted/40 px-4 py-2 font-semibold text-sm border-b flex items-center gap-2"><Users2 className="h-4 w-4" /> {group.name}</div>
+                <div>{members.map(m => renderStudentRow(m, subByStudent.get(m.id)))}</div>
+             </div>
+          );
+       }
+    }).filter(Boolean);
+
+    const matchingUngrouped = ungroupedStudents.filter(u => getCategory(subByStudent.get(u.id)) === tabCat);
+
+    if (renderedGroups.length === 0 && matchingUngrouped.length === 0) {
+       return <p className="text-center text-muted-foreground py-8 text-sm">لا توجد بيانات في هذه القائمة</p>;
+    }
+
+    return (
+      <div className="space-y-4">
+        {renderedGroups}
+        {matchingUngrouped.length > 0 && (
+           <div className="border border-destructive/20 rounded-lg overflow-hidden bg-card">
+              <div className="bg-destructive/5 px-4 py-2 font-semibold text-sm text-destructive border-b border-destructive/20">طلاب بدون مجموعة</div>
+              <div>{matchingUngrouped.map(u => renderStudentRow(u, subByStudent.get(u.id)))}</div>
+           </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <ul className="divide-y divide-border border rounded-lg overflow-hidden">
-      {targets.map((p) => {
-        const s = subByStudent.get(p.id);
-        const sl = s ? statusLabels[s.status as keyof typeof statusLabels] : { label: "لم يُسلَّم", variant: "outline" as const };
-        return (
-          <li key={p.id} className="px-4 py-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold">{p.full_name}</p>
-                  <span className="text-xs font-mono text-muted-foreground" dir="ltr">{p.national_id}</span>
-                  <Badge variant={sl.variant as any}>{sl.label}</Badge>
-                  {s?.is_late && <Badge variant="destructive" className="text-xs">متأخر</Badge>}
-                </div>
-                {s ? (<p className="text-xs text-muted-foreground mt-1">📎 {s.file_name} · {new Date(s.submitted_at).toLocaleString("ar-EG")}</p>) : (<p className="text-xs text-muted-foreground mt-1">لم يقم الطالب برفع ملف بعد</p>)}
-              </div>
-              {s && (
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" title="تحميل" onClick={() => onDownload(s)}><Download className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" title="قبول" className="text-success hover:bg-success/10" onClick={() => onUpdate(s.id, "approved")}><Check className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" title="رفض" className="text-destructive hover:bg-destructive/10" onClick={() => { const note = prompt("سبب الرفض (اختياري):") ?? undefined; onUpdate(s.id, "rejected", note); }}><X className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" title="طلب إعادة تسليم" className="text-warning hover:bg-warning/10" onClick={() => { const note = prompt("ملاحظات إعادة التسليم:") ?? undefined; onUpdate(s.id, "resubmit_requested", note); }}><RefreshCw className="h-4 w-4" /></Button>
-                </div>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+    <Tabs defaultValue="pending" className="w-full mt-4">
+      <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsTrigger value="pending" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+           قيد المراجعة ({pendingCount})
+        </TabsTrigger>
+        <TabsTrigger value="missing" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
+           لم يُسلم / مرفوض ({missingCount})
+        </TabsTrigger>
+        <TabsTrigger value="approved" className="data-[state=active]:bg-success/10 data-[state=active]:text-success">
+           مقبول ({approvedCount})
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="pending" className="mt-0">{renderContent("pending")}</TabsContent>
+      <TabsContent value="missing" className="mt-0">{renderContent("missing")}</TabsContent>
+      <TabsContent value="approved" className="mt-0">{renderContent("approved")}</TabsContent>
+    </Tabs>
   );
 }
 
