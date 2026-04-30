@@ -72,7 +72,7 @@ const AdminAssignments = () => {
   const [maxGroupSize, setMaxGroupSize] = useState<string>("");
   const [submissionMode, setSubmissionMode] = useState<"per_student" | "one_per_group">("per_student");
 
-  const load = async () => {
+    const load = async () => {
     setLoading(true);
     let allowedCourseIds: string[] | null = null;
     if (isSupervisor && currentUser) {
@@ -89,8 +89,8 @@ const AdminAssignments = () => {
     const assignQ = supabase.from("assignments").select("*").order("created_at", { ascending: false });
     const subQ = supabase.from("submissions").select("*, profiles(full_name, national_id)").order("submitted_at", { ascending: false });
     
-    // تعديل ذكي: الجلب المباشر لبيانات الطلاب المرتبطة لتجنب خطأ الاختفاء
-    const enrQ = supabase.from("course_students").select(`course_id, student_id, profiles(id, full_name, national_id)`);
+    // جلب الطلاب المسجلين (بدون دمج مباشر لتجنب أخطاء الربط)
+    const enrQ = supabase.from("course_students").select("course_id, student_id");
 
     if (allowedCourseIds) {
       courseQ.in("id", allowedCourseIds); groupQ.in("course_id", allowedCourseIds); assignQ.in("course_id", allowedCourseIds); enrQ.in("course_id", allowedCourseIds);
@@ -98,11 +98,24 @@ const AdminAssignments = () => {
 
     const [{ data: cs }, { data: gs }, { data: ass }, { data: subs }, { data: enrData }] = await Promise.all([courseQ, groupQ, assignQ, subQ, enrQ]);
 
+    // الطريقة المضمونة: تجميع أرقام الطلاب ثم جلب بياناتهم
+    const studentIds = Array.from(new Set([
+      ...((subs as any) ?? []).map((s: any) => s.student_id),
+      ...((enrData as any) ?? []).map((e: any) => e.student_id),
+    ])) as string[];
+
+    let profileMap = new Map<string, Profile>();
+    if (studentIds.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, national_id").in("id", studentIds);
+      profileMap = new Map((profs ?? []).map((p: any) => [p.id, p as Profile]));
+    }
+
     const enrMap = new Map<string, Profile[]>();
     ((enrData as any) ?? []).forEach((row: any) => {
-      if (!row.profiles) return;
+      const p = profileMap.get(row.student_id);
+      if (!p) return; // الآن لن يتم تجاهل أحد لأن البيانات موجودة
       const list = enrMap.get(row.course_id) ?? [];
-      list.push(row.profiles as Profile);
+      list.push(p);
       enrMap.set(row.course_id, list);
     });
     
