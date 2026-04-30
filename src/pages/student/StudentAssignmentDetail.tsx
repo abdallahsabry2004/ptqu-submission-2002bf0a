@@ -96,11 +96,13 @@ const StudentAssignmentDetail = () => {
   const isGroupMode = assignment?.grouping_mode !== "none";
   const isOnePerGroup = isGroupMode && assignment?.group_submission_mode === "one_per_group";
 
+  // العثور على التسليم الحالي للطالب
   const mySubmission = isOnePerGroup ? allSubs[0] : allSubs.find(s => s.student_id === user?.id);
 
   const handleUpload = async (file: File) => {
     if (!user || !assignment) return;
     
+    // إزالة التقييد للامتدادات كما طلبت، وتركنا حجم الملف فقط لتجنب تعليق السيرفر
     if (file.size > 50 * 1024 * 1024) {
       toast.error("الحد الأقصى لحجم الملف هو 50 ميجا بايت");
       return;
@@ -117,6 +119,7 @@ const StudentAssignmentDetail = () => {
       const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
       if (!session || sessionErr) throw new Error("انتهت الجلسة، يرجى تحديث الصفحة والمحاولة مجدداً.");
 
+      // الاستبدال المباشر: حذف الملف القديم قبل الرفع
       if (mySubmission?.file_path) {
         await supabase.storage.from("submissions").remove([mySubmission.file_path]).catch(()=>{});
       }
@@ -124,6 +127,7 @@ const StudentAssignmentDetail = () => {
       const { data: { publicUrl } } = supabase.storage.from("submissions").getPublicUrl("");
       const uploadUrl = publicUrl.replace('/object/public/', '/object/') + path;
 
+      // XHR لإظهار نسبة وسرعة الرفع الحقيقية
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         let startTime = Date.now();
@@ -157,14 +161,16 @@ const StudentAssignmentDetail = () => {
         xhr.send(file);
       });
 
+      // حذف السجل القديم من قاعدة البيانات
       if (mySubmission) {
         await supabase.from("submissions").delete().eq("id", mySubmission.id);
       }
 
+      // إدخال السجل الجديد (وإصلاح مشكلة الـ group_id)
       const insertPayload = {
         assignment_id: assignment.id,
         student_id: (isOnePerGroup && mySubmission) ? mySubmission.student_id : user.id,
-        group_id: myGroup?.id || null, // تم إرجاع ربط المجموعة هنا
+        group_id: myGroup?.id || null, // <- تم إضافة هذا السطر الهام جداً
         file_path: path,
         file_name: file.name,
         file_size: file.size,
@@ -272,6 +278,7 @@ const StudentAssignmentDetail = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-primary" /> {isOnePerGroup ? "تسليم المجموعة" : "تسليمك الشخصي"}</CardTitle>
+              <CardDescription>{mySubmission ? "تسليمك الحالي" : "ارفع ملف التسليم"}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {mySubmission && (() => {
