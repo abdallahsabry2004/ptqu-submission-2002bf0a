@@ -90,7 +90,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="container grid gap-6 py-4 sm:py-6 px-3 sm:px-6 lg:grid-cols-[240px_1fr] flex-1 pb-24 lg:pb-6">
+      <div className="container grid gap-6 py-4 sm:py-6 px-3 sm:px-6 lg:grid-cols-[240px_1fr] flex-1">
         <aside className="hidden lg:block lg:sticky lg:top-20 lg:self-start">
           <nav className="flex flex-col gap-2">
             {items.map((item) => (
