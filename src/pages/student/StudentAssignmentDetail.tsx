@@ -169,7 +169,7 @@ const StudentAssignmentDetail = () => {
       // إدخال السجل الجديد (وإصلاح مشكلة الـ group_id)
       const insertPayload = {
         assignment_id: assignment.id,
-        student_id: (isOnePerGroup && mySubmission) ? mySubmission.student_id : user.id,
+        student_id: user.id,
         group_id: myGroup?.id || null, // <- تم إضافة هذا السطر الهام جداً
         file_path: path,
         file_name: file.name,
