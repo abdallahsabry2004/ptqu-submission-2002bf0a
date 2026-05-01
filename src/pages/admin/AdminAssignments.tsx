@@ -88,7 +88,7 @@ const AdminAssignments = () => {
     const courseQ = supabase.from("courses").select("id, name").order("name");
     const groupQ = supabase.from("groups").select("id, name, course_id");
     const assignQ = supabase.from("assignments").select("*").order("created_at", { ascending: false });
-    const subQ = supabase.from("submissions").select("*, profiles(full_name, national_id)").order("submitted_at", { ascending: false });
+    const subQ = supabase.from("submissions").select("*").order("submitted_at", { ascending: false });
     const enrQ = supabase.from("course_students").select("course_id, student_id");
 
     if (allowedCourseIds) {
