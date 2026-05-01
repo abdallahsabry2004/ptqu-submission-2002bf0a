@@ -6,7 +6,7 @@ export function AppFooter() {
   const telegramUrl = "https://t.me/Dr_Abdallah_Sabry";
 
   return (
-    <footer className="border-t border-border/50 bg-card/30 mt-auto">
+    <footer className="border-t border-border/50 bg-card/30 mt-auto mb-16 lg:mb-0">
       <div className="container py-8 flex flex-col items-center gap-4 text-center">
         <div>
           <p className="font-display font-bold text-lg">برمجة وتطوير</p>
