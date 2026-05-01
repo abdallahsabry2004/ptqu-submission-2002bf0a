@@ -659,15 +659,27 @@ function RosterView({ assignment, submissions, getTargets, onUpdate, onDownload 
 
   return (
     <Tabs defaultValue="pending" className="w-full mt-4">
-      <TabsList className="grid w-full grid-cols-3 mb-6">
-        <TabsTrigger value="pending" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-           قيد المراجعة ({pendingCount})
+      <TabsList className="grid w-full grid-cols-3 mb-6 h-auto gap-1 p-1">
+        <TabsTrigger
+          value="pending"
+          className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 whitespace-normal text-center px-1 sm:px-3 py-2 text-[11px] sm:text-sm leading-tight data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+        >
+          <span>قيد المراجعة</span>
+          <span className="opacity-80">({pendingCount})</span>
         </TabsTrigger>
-        <TabsTrigger value="missing" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
-           لم يُسلم / مرفوض ({missingCount})
+        <TabsTrigger
+          value="missing"
+          className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 whitespace-normal text-center px-1 sm:px-3 py-2 text-[11px] sm:text-sm leading-tight data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive"
+        >
+          <span>لم يُسلم / مرفوض</span>
+          <span className="opacity-80">({missingCount})</span>
         </TabsTrigger>
-        <TabsTrigger value="approved" className="data-[state=active]:bg-success/10 data-[state=active]:text-success">
-           مقبول ({approvedCount})
+        <TabsTrigger
+          value="approved"
+          className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 whitespace-normal text-center px-1 sm:px-3 py-2 text-[11px] sm:text-sm leading-tight data-[state=active]:bg-success/10 data-[state=active]:text-success"
+        >
+          <span>مقبول</span>
+          <span className="opacity-80">({approvedCount})</span>
         </TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">{renderContent("pending")}</TabsContent>
