@@ -342,20 +342,40 @@ const StudentAssignmentDetail = () => {
                 )
               )}
 
-              {/* رؤية تسليمات باقي أفراد المجموعة */}
+              {/* رؤية تسليمات باقي أفراد المجموعة مع حالة كل تسليم */}
               {isGroupMode && !isOnePerGroup && groupMembers.length > 1 && (
                 <div className="mt-8 pt-6 border-t border-border">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /> تسليمات باقي أعضاء مجموعتك</h3>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" /> تسليمات أعضاء مجموعتك
+                  </h3>
                   <div className="space-y-2">
                     {groupMembers.filter(m => m.id !== user?.id).map(member => {
                       const mSub = allSubs.find(s => s.student_id === member.id);
+                      const sl = mSub ? statusLabels[mSub.status] : null;
                       return (
-                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-card/50">
-                          <div>
-                            <p className="text-sm font-medium">{member.full_name}</p>
-                            {mSub ? (<p className="text-xs text-muted-foreground mt-1 truncate max-w-[200px] sm:max-w-xs">📎 {mSub.file_name}</p>) : (<p className="text-xs text-muted-foreground mt-1">لم يتم التسليم بعد</p>)}
+                        <div key={member.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card/50 flex-wrap">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium truncate">{member.full_name}</p>
+                              {sl ? (
+                                <Badge variant={sl.variant} className="text-[10px]">{sl.label}</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px]">لم يُسلم بعد</Badge>
+                              )}
+                              {mSub?.is_late && <Badge variant="destructive" className="text-[10px]">متأخر</Badge>}
+                            </div>
+                            {mSub && (
+                              <p className="text-xs text-muted-foreground mt-1 truncate">📎 {mSub.file_name}</p>
+                            )}
+                            {mSub?.reviewer_notes && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">📝 {mSub.reviewer_notes}</p>
+                            )}
                           </div>
-                          {mSub && <Button variant="ghost" size="sm" onClick={() => handleDownloadFile(mSub.file_path, mSub.file_name)}>تحميل</Button>}
+                          {mSub && (
+                            <Button variant="ghost" size="sm" className="gap-1" onClick={() => handleDownloadFile(mSub.file_path, mSub.file_name)}>
+                              <Download className="h-4 w-4" /> تحميل
+                            </Button>
+                          )}
                         </div>
                       );
                     })}
