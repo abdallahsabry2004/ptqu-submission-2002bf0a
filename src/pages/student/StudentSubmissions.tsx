@@ -24,13 +24,19 @@ const StudentSubmissions = () => {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // 1. Fetch user's groups
-      const { data: myGroups } = await supabase.from("assignment_group_members").select("group_id").eq("student_id", user.id);
-      const groupIds = (myGroups || []).map(g => g.group_id);
+      // 1. اجلب مجموعات الطالب
+      const { data: myGroups } = await supabase
+        .from("assignment_group_members")
+        .select("group_id")
+        .eq("student_id", user.id);
+      const groupIds = (myGroups || []).map((g) => g.group_id);
 
-      // 2. Fetch submissions: Mine OR belong to my groups
-      let query = supabase.from("submissions").select("*, assignments(title, course_id, courses(id, name))").order("submitted_at", { ascending: false });
-      
+      // 2. اجلب التسليمات: الخاصة بالطالب أو الخاصة بمجموعاته (سنفلتر لاحقاً)
+      let query = supabase
+        .from("submissions")
+        .select("*, assignments(title, course_id, group_submission_mode, grouping_mode, courses(id, name))")
+        .order("submitted_at", { ascending: false });
+
       if (groupIds.length > 0) {
         query = query.or(`student_id.eq.${user.id},group_id.in.(${groupIds.join(",")})`);
       } else {
@@ -38,9 +44,23 @@ const StudentSubmissions = () => {
       }
 
       const { data } = await query;
-      
+
+      // 3. فلترة:
+      // - التسليمات الفردية للطالب نفسه (بدون مجموعة) → تظهر دائماً
+      // - التكليفات الجماعية وضع one_per_group → تظهر تسليم المجموعة (أياً كان صاحبه)
+      // - التكليفات الجماعية وضع per_student → تظهر فقط تسليم الطالب نفسه
+      const filtered = (data ?? []).filter((s: any) => {
+        const a = s.assignments;
+        if (!a) return s.student_id === user.id;
+        const isGroup = a.grouping_mode && a.grouping_mode !== "none";
+        if (!isGroup) return s.student_id === user.id;
+        if (a.group_submission_mode === "one_per_group") return true;
+        // per_student
+        return s.student_id === user.id;
+      });
+
       const g: Record<string, any[]> = {};
-      (data ?? []).forEach((s: any) => {
+      filtered.forEach((s: any) => {
         const cName = s.assignments?.courses?.name ?? "غير محدد";
         if (!g[cName]) g[cName] = [];
         g[cName].push(s);
