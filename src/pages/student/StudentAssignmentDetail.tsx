@@ -356,21 +356,23 @@ const StudentAssignmentDetail = () => {
                 )
               )}
 
-              {/* رؤية تسليمات باقي أفراد المجموعة مع حالة كل تسليم */}
-              {isGroupMode && !isOnePerGroup && groupMembers.length > 1 && (
+              {/* رؤية تسليمات أفراد المجموعة وحالة كل واحد */}
+              {isGroupMode && !isOnePerGroup && groupMembers.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-border">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" /> تسليمات أعضاء مجموعتك
+                    <FileText className="h-4 w-4 text-muted-foreground" /> أعضاء المجموعة وحالة تسليم كل طالب
                   </h3>
                   <div className="space-y-2">
-                    {groupMembers.filter(m => m.id !== user?.id).map(member => {
+                    {groupMembers.map(member => {
                       const mSub = allSubs.find(s => s.student_id === member.id);
+                      const isMe = member.id === user?.id;
                       const sl = mSub ? statusLabels[mSub.status] : null;
                       return (
-                        <div key={member.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card/50 flex-wrap">
+                        <div key={member.id} className={`flex items-center justify-between gap-2 p-3 border rounded-lg flex-wrap ${isMe ? 'bg-primary/5 border-primary/30' : 'bg-card/50'}`}>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-medium truncate">{member.full_name}</p>
+                              {isMe && <Badge variant="outline" className="text-[10px]">أنت</Badge>}
                               {sl ? (
                                 <Badge variant={sl.variant} className="text-[10px]">{sl.label}</Badge>
                               ) : (
@@ -385,7 +387,7 @@ const StudentAssignmentDetail = () => {
                               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">📝 {mSub.reviewer_notes}</p>
                             )}
                           </div>
-                          {mSub && (
+                          {mSub && !isMe && (
                             <Button variant="ghost" size="sm" className="gap-1" onClick={() => handleDownloadFile(mSub.file_path, mSub.file_name)}>
                               <Download className="h-4 w-4" /> تحميل
                             </Button>
