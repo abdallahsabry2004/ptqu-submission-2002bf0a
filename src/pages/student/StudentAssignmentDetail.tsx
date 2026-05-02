@@ -63,10 +63,24 @@ const StudentAssignmentDetail = () => {
         currentGroup = { id: gMem.group_id, name: (gMem.assignment_groups as any).name };
         setMyGroup(currentGroup);
 
-        const { data: gms } = await supabase.from("assignment_group_members")
-          .select("student_id, profiles(id, full_name, national_id)")
+        // جلب أعضاء المجموعة (student_id فقط لأنه لا يوجد FK لـ profiles)
+        const { data: gms } = await supabase
+          .from("assignment_group_members")
+          .select("student_id")
           .eq("group_id", currentGroup.id);
-        setGroupMembers((gms || []).map((m:any) => m.profiles));
+
+        const memberIds = (gms || []).map((m: any) => m.student_id);
+
+        // جلب بيانات الـ profiles لأعضاء المجموعة بشكل منفصل
+        let members: any[] = [];
+        if (memberIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, full_name, national_id")
+            .in("id", memberIds);
+          members = profs || [];
+        }
+        setGroupMembers(members);
 
         const { data: gSubs } = await supabase.from("submissions")
           .select("*")
